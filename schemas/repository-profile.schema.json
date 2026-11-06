@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "repository", "technology", "structure", "commands", "conventions_file", "patterns_file", "examples_directory", "restrictions", "knowledge_gaps", "evidence"],
   "properties": {
-    "schema_version": { "type": "string", "const": "1.1" },
+    "schema_version": { "type": "string", "const": "1.2" },
     "repository": {
       "type": "object",
       "additionalProperties": false,
@@ -17,10 +17,11 @@
         "description": { "type": "string" },
         "identity": {
           "type": "object", "additionalProperties": false,
-          "required": ["kind", "value", "key"],
+          "required": ["kind", "value", "scope", "key"],
           "properties": {
             "kind": { "enum": ["git_remote", "filesystem_path"] },
             "value": { "type": "string", "minLength": 1 },
+            "scope": { "type": "string", "minLength": 1 },
             "key": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
           }
         }
@@ -64,8 +65,8 @@
     "commandList": {
       "type": "array",
       "items": {
-        "type": "object", "additionalProperties": false, "required": ["name", "argv", "evidence"],
-        "properties": { "name": { "type": "string", "minLength": 1 }, "argv": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "evidence": { "$ref": "#/$defs/evidenceRef" } }
+        "type": "object", "additionalProperties": false, "required": ["name", "argv", "working_directory", "evidence"],
+        "properties": { "name": { "type": "string", "minLength": 1 }, "argv": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "working_directory": { "type": "string", "minLength": 1 }, "evidence": { "$ref": "#/$defs/evidenceRef" } }
       }
     },
     "evidenceRef": {

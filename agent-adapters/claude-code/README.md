@@ -1,6 +1,6 @@
 # Claude Code adapter
 
-Claude Code loads the shared Agent Skills from `~/.claude/skills`. Run `python3 scripts/install_agent_skills.py` on macOS/Linux or `py -3 scripts/install_agent_skills.py` on Windows from this checkout. The installer creates directory symlinks, with a Windows junction fallback, and refuses to replace existing nonmatching skill paths.
+Claude Code loads the shared Agent Skills from `~/.claude/skills`. Run `python3 scripts/install_agent_skills.py --agent claude` on macOS/Linux or `py -3 scripts/install_agent_skills.py --agent claude` on Windows from this checkout. The installer creates directory symlinks, with a Windows junction fallback, and refuses to replace existing nonmatching skill paths.
 
 In Claude Code, invoke `/qa-onboard-repo` to create a repository profile draft and `/jira-test-generator` to prepare Jira automation. Both skills use the same profile store and approval gates as the Codex adapter.
 

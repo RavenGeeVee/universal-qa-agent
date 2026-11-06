@@ -11,7 +11,7 @@ Use the repository open in the active coding agent as the target unless the user
 
 Report Jira read, repository read/write, command execution, and approval-gate capability as available, unavailable, or unknown. Record whether issue content was retrieved, supplied by the user, partial, or unavailable, including missing sources and retrieval limits. Never imply unavailable Jira content was retrieved.
 
-Resolve the accepted profile by schema 1.1 repository identity, not its folder name. The current helper still selects by folder name; inspect the profile identity and stop on missing, mismatched, ambiguous, or legacy version 1.0 profiles until they are migrated and approved. A deterministic schema validator is not yet implemented: identify generated analyses, cases, and plans as unvalidated, and do not proceed to target code changes until validation succeeds.
+Resolve the accepted profile by schema 1.2 repository identity and monorepo scope, not its folder name. The helper verifies identity, schema, and a content-bound approval record before loading it. Stop on missing, mismatched, ambiguous, or legacy profiles until they are migrated and approved. Validate generated analyses, cases, and plans with the bundled local validator before presenting them as ready.
 
 Resolve this loaded `SKILL.md` to its actual file location (follow symlinks for legacy skill installs). The package root is two directories above its containing skill directory. Resolve bundled `scripts/`, `schemas/`, and `repo-profiles/template/` from that root, never from the target working directory or a fixed clone path. Quote paths when constructing commands. Use Python 3.10 or newer (`python3` on macOS/Linux; `py -3` on Windows).
 
@@ -27,9 +27,9 @@ Load the accepted repository profile and its conventions/patterns using:
 <python-3-launcher> "<package-root>/scripts/qa_agent.py" profile --repo "<absolute-target-path>"
 ```
 
-Use `python3` on macOS/Linux or `py -3` on Windows in place of `<python-3-launcher>`. If no approved profile exists, follow the bundled sibling `../qa-onboard-repo/SKILL.md` workflow before proceeding. Check that `repository.identity` matches the target; stop on missing identity or any mismatch. The current helper still selects by folder name, so its output alone is not identity proof. Inspect relevant current automation files and profile evidence before proposing changes.
+Use `python3` on macOS/Linux or `py -3` on Windows in place of `<python-3-launcher>`. If no approved profile exists, follow the bundled sibling `../qa-onboard-repo/SKILL.md` workflow before proceeding. The helper verifies that `repository.identity` matches the target; stop on missing identity or any mismatch. Inspect relevant current automation files and profile evidence before proposing changes.
 
-Use the bundled requirement-analysis, test-case, and automation-plan schemas under `schemas/` as output contracts. Include each required `schema_version`. The plan records pending approval and exact scopes; a command scope contains its argument vector and working directory. Bind approval to the digest of the displayed plan. The current adapter cannot mechanically enforce writes or command execution, so stop immediately before those actions and obtain direct user approval.
+Use the bundled requirement-analysis, test-case, and automation-plan schemas under `schemas/` as output contracts. Include each required `schema_version`. Validate cross-artifact references, retrieval status, target-file scopes, and command scopes against the profile. The plan records pending approval and exact scopes; a command scope contains its argument vector and working directory. Bind approval to the canonical digest of the displayed plan, including schema version. The current adapter cannot mechanically enforce writes or command execution, so stop immediately before those actions and obtain direct user approval.
 
 ## Analysis and plan
 

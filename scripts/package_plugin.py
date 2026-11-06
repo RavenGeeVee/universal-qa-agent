@@ -5,7 +5,7 @@ import shutil
 import sys
 
 
-PACKAGE_FILES = ("plugin.json", "scripts/qa_agent.py")
+PACKAGE_FILES = ("plugin.json", "scripts/qa_agent.py", "requirements-core.txt")
 PACKAGE_DIRECTORIES = ("skills", "schemas", "repo-profiles/template")
 
 

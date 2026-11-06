@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "issue", "requirements", "acceptance_criteria", "dependencies", "ambiguities", "questions", "host_capabilities"],
   "properties": {
-    "schema_version": { "type": "string", "const": "1.1" },
+    "schema_version": { "type": "string", "const": "1.2" },
     "issue": {
       "type": "object",
       "additionalProperties": false,
@@ -29,13 +29,15 @@
     },
     "host_capabilities": {
       "type": "object", "additionalProperties": false,
-      "required": ["jira_read", "repository_read", "repository_write", "command_execution", "approval_gate"],
+      "required": ["jira_read", "repository_read", "repository_write", "profile_store_write", "command_execution", "target_write_gate", "command_gate"],
       "properties": {
         "jira_read": { "$ref": "#/$defs/capability" },
         "repository_read": { "$ref": "#/$defs/capability" },
         "repository_write": { "$ref": "#/$defs/capability" },
+        "profile_store_write": { "$ref": "#/$defs/capability" },
         "command_execution": { "$ref": "#/$defs/capability" },
-        "approval_gate": { "$ref": "#/$defs/capability" }
+        "target_write_gate": { "$ref": "#/$defs/capability" },
+        "command_gate": { "$ref": "#/$defs/capability" }
       }
     },
     "requirements": { "type": "array", "items": { "$ref": "#/$defs/statement" } },

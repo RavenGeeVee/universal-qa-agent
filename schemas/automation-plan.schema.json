@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "issue_key", "items", "approval_required", "approval", "unresolved_gaps"],
   "properties": {
-    "schema_version": { "type": "string", "const": "1.1" },
+    "schema_version": { "type": "string", "const": "1.2" },
     "issue_key": { "type": "string", "minLength": 1 },
     "items": { "type": "array", "items": { "$ref": "#/$defs/item" } },
     "approval_required": { "type": "boolean" },
@@ -61,12 +61,20 @@
       "required": ["test_case_id", "action", "rationale", "target_files", "evidence"],
       "properties": {
         "test_case_id": { "type": "string", "minLength": 1 },
-        "action": { "enum": ["reuse", "extend", "create"] },
+        "action": { "enum": ["reuse", "extend", "create", "blocked"] },
         "rationale": { "type": "string", "minLength": 1 },
-        "target_files": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "target_files": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "evidence": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
-        "approval_reason": { "type": "string" }
-      }
+        "approval_reason": { "type": "string" },
+        "blocked_reason": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "action": { "const": "blocked" } } },
+          "then": { "required": ["blocked_reason"], "properties": { "target_files": { "maxItems": 0 } } },
+          "else": { "properties": { "target_files": { "minItems": 1 } } }
+        }
+      ]
     }
   }
 }

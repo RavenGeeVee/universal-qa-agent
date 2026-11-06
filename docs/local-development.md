@@ -4,7 +4,7 @@ The package uses root `plugin.json` and root `skills/`, following the [official 
 
 ## Plugin installation
 
-1. Prepare the distributable with `rtk python3 scripts/package_plugin.py` after approving that exact packaging command. It stages only the manifest, skills, schemas, profile helper, and empty profile template under `dist/universal-qa-agent`. It excludes private drafts, developer settings, and bytecode. It refuses to overwrite an existing output; preserve or explicitly remove that output before rebuilding.
+1. Prepare the distributable with `rtk python3 scripts/package_plugin.py` after approving that exact packaging command. It stages the manifest, skills, schemas, profile helper, local dependency declaration, and empty profile template under `dist/universal-qa-agent`. It excludes private drafts, developer settings, and bytecode. It refuses to overwrite an existing output; preserve or explicitly remove that output before rebuilding.
 2. Keep this checkout at a stable location. Register its marketplace with `codex plugin marketplace add /absolute/path/to/universal-qa-agent` where supported, or open the repository in the ChatGPT desktop app to discover its repo marketplace.
 3. Restart the desktop app, choose **Universal QA Local** in the Plugins Directory, and install **universal-qa-agent**.
 4. Start a new Codex conversation in the target automation repository. Select the plugin's onboarding skill, then its Jira generation skill when an approved profile exists. Use the skill names shown by the host; plugin skills may be namespaced.
@@ -28,23 +28,29 @@ python3 scripts/qa_agent.py profile --repo /absolute/path/to/target
 python3 scripts/qa_agent.py --profiles-dir /absolute/profile-store profiles
 ```
 
-Use Python 3.10 or newer. On Windows use `py -3` and quote paths containing spaces. `profile-path` prints a destination without creating it. Only onboarding writes drafts, and only explicit approval permits the `.profile-approved` marker. Sandbox restrictions may require scoped write approval for the chosen profile location; the workflow must not silently fall back to the plugin cache.
+Use Python 3.10 or newer and install local dependencies with `python3 -m pip install -r requirements-core.txt` (Windows: `py -3 -m pip install -r requirements-core.txt`). `profile-path` prints an identity-keyed destination without creating it. After the user reviews and approves a draft, `approve-profile --approval-reference "<approval note>"` validates it and writes a marker bound to the exact profile contents. Sandbox restrictions may require scoped write approval for the chosen profile location; the workflow must not silently fall back to the plugin cache.
 
 ## Existing local profiles
 
-Existing `repo-profiles/<target-name>/` folders stay untouched. Profile schema 1.0 has no stable identity; treat those profiles as migration drafts. Bind each profile to a verified repository identity, validate the updated schema, and obtain approval before making it loadable. No automatic migration is performed.
+Existing `repo-profiles/<target-name>/` folders stay untouched and are not discovered by the identity-keyed loader. Profile schemas before 1.2 lack scoped identity; treat those profiles as migration drafts. Bind each profile to a verified repository identity, validate the updated schema, and obtain approval before making it loadable. No automatic migration is performed.
 
-For a temporary transition, set `UQA_PROFILES_DIR` to the absolute legacy checkout's `repo-profiles` directory. This keeps the old location but does not add identity matching. The current helper still selects by folder name; same-named repositories are ambiguous and require manual identity checks.
+Git remotes use `origin`, or the only configured remote. When multiple non-origin remotes exist, pass `--remote` to select one. Monorepo subdirectories have separate profile scopes.
 
-## Claude Code and GitHub Copilot
+## Personal skill links for Codex, Claude Code, and GitHub Copilot
 
 The two workflows have one canonical source in root `skills/`. From the Universal QA Agent checkout, install personal links with:
 
 ```sh
+# Default: Claude Code and GitHub Copilot
 python3 scripts/install_agent_skills.py
+
+# Or select exactly one host
+python3 scripts/install_agent_skills.py --agent claude
+python3 scripts/install_agent_skills.py --agent copilot
+python3 scripts/install_agent_skills.py --agent codex
 ```
 
-On Windows, use `py -3 scripts/install_agent_skills.py`. The installer links those workflows to Claude Code (`~/.claude/skills`) and GitHub Copilot (`~/.copilot/skills`); it falls back to Windows junctions and refuses to replace occupied skill paths. The links point back to this checkout, so keep it at a stable location. Codex continues to use its plugin or the existing Codex-only installer.
+On Windows, use `py -3 scripts/install_agent_skills.py`. The installer links those workflows to Claude Code (`~/.claude/skills`) and GitHub Copilot (`~/.copilot/skills`); it falls back to Windows junctions and refuses to replace occupied skill paths. The links point back to this checkout, so keep it at a stable location. Codex can use its plugin or standalone links selected with `--agent codex`; avoid enabling both.
 
 Open the target repository in Claude Code and invoke `/qa-onboard-repo`; after reviewing and approving the profile, invoke `/jira-test-generator`. In Copilot, ask it to onboard the current repository or generate automation from a Jira issue; its skill selection is based on each skill's description. Both adapters use the same profile store and approval flow as Codex. Jira retrieval and file/command permissions depend on the active host surface.
 
@@ -52,7 +58,7 @@ Installing personal links modifies the user's home directory; this repository ch
 
 ## Verification
 
-The current helper does not yet validate the new schemas or resolve profiles by identity. Tests and live host installation have not been run as part of packaging. With explicit approval for the exact command, the helper/package tests can be run from this checkout:
+The helper validates schemas and resolves profiles by identity. Tests and live host installation have not been run as part of this change. With explicit approval for the exact command, the helper/package tests can be run from this checkout:
 
 ```sh
 rtk python3 -m unittest discover -s tests -p 'test_qa_agent.py'

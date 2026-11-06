@@ -1,6 +1,6 @@
 # GitHub Copilot adapter
 
-GitHub Copilot loads personal Agent Skills from `~/.copilot/skills`. Run `python3 scripts/install_agent_skills.py` on macOS/Linux or `py -3 scripts/install_agent_skills.py` on Windows from this checkout. The installer creates directory symlinks, with a Windows junction fallback, and refuses to replace existing nonmatching skill paths.
+GitHub Copilot loads personal Agent Skills from `~/.copilot/skills`. Run `python3 scripts/install_agent_skills.py --agent copilot` on macOS/Linux or `py -3 scripts/install_agent_skills.py --agent copilot` on Windows from this checkout. The installer creates directory symlinks, with a Windows junction fallback, and refuses to replace existing nonmatching skill paths.
 
 Ask Copilot to onboard the current automation repository or generate automation from a Jira issue. Copilot selects relevant skills from their descriptions; the shared skill files define the same profile store, evidence requirements, approval gates, and validation behavior as the Codex adapter.
 

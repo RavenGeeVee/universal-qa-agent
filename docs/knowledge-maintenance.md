@@ -6,5 +6,5 @@ For each discovery, record the statement, classification (universal or repositor
 - Cross-repository workflow rules may be proposed for universal core documentation only when evidence supports generalization.
 - Preserve useful examples with source provenance; do not copy secrets or sensitive test data.
 - Present updates as a diff or equivalent reviewable proposal. Do not persist accepted profile or shared-knowledge changes without explicit approval scoped to the named identity and knowledge files.
-- If the deterministic validator is unavailable, keep the proposal unvalidated and do not persist it.
+- Validate the proposal with `qa_agent.py validate --schema knowledge-proposal.schema.json`; universal proposals need repository evidence from at least two distinct identity keys.
 - After approval, update the appropriate file and report the change. On conflict, keep the prior accepted rule and surface the conflict for resolution.
