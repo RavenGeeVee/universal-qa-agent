@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import os
+import shutil
 from pathlib import Path
 import tempfile
 import unittest
@@ -24,7 +25,7 @@ PACKAGE_SPEC.loader.exec_module(packager)
 
 def approved_profile(repo, store):
     identity = qa_agent.repository_identity(repo)
-    directory = store / f"repo-{identity['key'][7:]}"
+    directory = store / Path(repo).resolve().name
     directory.mkdir(parents=True)
     profile = qa_agent.yaml.safe_load((SCRIPT.parents[1] / "repo-profiles/template/profile.yaml").read_text(encoding="utf-8"))
     profile["repository"].update(name=Path(repo).name, root=str(Path(repo)))
@@ -38,13 +39,119 @@ def approved_profile(repo, store):
     return directory
 
 
-class ProfileLoadingTests(unittest.TestCase):
-    def test_default_store_is_outside_the_plugin(self):
+class ProfileStorageDiscoveryTests(unittest.TestCase):
+    def create_checkout(self, root):
+        for name in ("scripts/install_agent_skills.py", "repo-profiles/template/profile.yaml"):
+            path = root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("source marker", encoding="utf-8")
+        return root
+
+    def context(self, home, runtime):
+        stack = contextlib.ExitStack()
+        stack.enter_context(mock.patch.dict(os.environ, {"UQA_PROFILES_DIR": ""}))
+        stack.enter_context(mock.patch.object(Path, "home", return_value=home))
+        stack.enter_context(mock.patch.object(qa_agent, "ROOT", runtime))
+        return stack
+
+    def test_source_helper_uses_its_checkout_even_when_renamed(self):
         with tempfile.TemporaryDirectory() as temporary:
             home = Path(temporary).resolve()
-            with mock.patch.dict(os.environ, {"UQA_PROFILES_DIR": ""}), mock.patch.object(Path, "home", return_value=home):
-                self.assertEqual(home / ".local/share/universal-qa-agent/repo-profiles", qa_agent.profiles_root())
+            checkout = self.create_checkout(home / "renamed-toolkit")
+            with self.context(home, checkout):
+                self.assertEqual(checkout / "repo-profiles", qa_agent.profiles_root())
 
+    def test_plugin_helper_discovers_nested_home_checkout_without_writes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary).resolve()
+            checkout = self.create_checkout(home / "Documents/projects/universal-qa-agent")
+            before = set(home.rglob("*"))
+            with self.context(home, home / ".codex/plugins/cache/universal-qa-agent"):
+                self.assertEqual(checkout / "repo-profiles", qa_agent.profiles_root())
+            self.assertEqual(before, set(home.rglob("*")))
+
+    def test_cache_staged_packages_and_build_trees_are_not_profile_stores(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary).resolve()
+            self.create_checkout(home / ".codex/plugins/cache/universal-qa-agent")
+            self.create_checkout(home / "build/universal-qa-agent")
+            package = home / "plugins/universal-qa-agent/repo-profiles/template"
+            package.mkdir(parents=True)
+            (package / "profile.yaml").write_text("package template", encoding="utf-8")
+            checkout = self.create_checkout(home / "Documents/universal-qa-agent")
+            with self.context(home, package.parents[1]):
+                self.assertEqual(checkout / "repo-profiles", qa_agent.profiles_root())
+
+    def test_multiple_checkouts_require_explicit_storage_selection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary).resolve()
+            self.create_checkout(home / "work/universal-qa-agent")
+            self.create_checkout(home / "personal/universal-qa-agent")
+            with self.context(home, home / "plugin"):
+                with self.assertRaisesRegex(ValueError, "UQA_PROFILES_DIR"):
+                    qa_agent.profiles_root()
+
+    def test_missing_checkout_does_not_fall_back_to_external_storage(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary).resolve()
+            with self.context(home, home / "plugin"):
+                with self.assertRaisesRegex(FileNotFoundError, "UQA_PROFILES_DIR"):
+                    qa_agent.profiles_root()
+            self.assertEqual([], list(home.iterdir()))
+
+    def test_personal_skill_link_finds_checkout_outside_home(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            home = root / "home"
+            home.mkdir()
+            checkout = self.create_checkout(root / "external/renamed-toolkit")
+            source = checkout / "skills/qa-onboard-repo"
+            source.mkdir(parents=True)
+            for directory in (".agents/skills", ".claude/skills", ".copilot/skills"):
+                link = home / directory / "qa-onboard-repo"
+                link.parent.mkdir(parents=True)
+                link.symlink_to(source, target_is_directory=True)
+            with self.context(home, home / "plugin"):
+                self.assertEqual(checkout / "repo-profiles", qa_agent.profiles_root())
+
+    def test_home_search_does_not_follow_directory_symlinks(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            home = root / "home"
+            home.mkdir()
+            self.create_checkout(root / "external/universal-qa-agent")
+            (home / "shortcut").symlink_to(root / "external", target_is_directory=True)
+            with self.context(home, home / "plugin"):
+                with self.assertRaises(FileNotFoundError):
+                    qa_agent.profiles_root()
+
+    def test_searchable_directory_rejects_symlinks(self):
+        directory = mock.Mock()
+        directory.is_symlink.return_value = True
+        self.assertFalse(qa_agent._searchable_directory(directory))
+        directory.lstat.assert_not_called()
+
+    def test_searchable_directory_rejects_windows_junctions(self):
+        directory = mock.Mock()
+        directory.is_symlink.return_value = False
+        for attributes, expected in (
+            (qa_agent.stat.FILE_ATTRIBUTE_REPARSE_POINT, False),
+            (0, True),
+        ):
+            with self.subTest(attributes=attributes), mock.patch.object(qa_agent.os, "name", "nt"):
+                directory.lstat.return_value.st_file_attributes = attributes
+                self.assertEqual(expected, qa_agent._searchable_directory(directory))
+
+    def test_explicit_store_takes_precedence_over_environment_and_discovery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            with self.context(root, root / "plugin"):
+                with mock.patch.dict(os.environ, {"UQA_PROFILES_DIR": str(root / "environment-store")}):
+                    self.assertEqual(root / "explicit-store", qa_agent.profiles_root(root / "explicit-store"))
+                    self.assertEqual(root / "environment-store", qa_agent.profiles_root())
+
+
+class ProfileLoadingTests(unittest.TestCase):
     def test_environment_override_expands_home(self):
         with mock.patch.dict(os.environ, {"UQA_PROFILES_DIR": "~/qa-profiles"}):
             self.assertEqual((Path.home() / "qa-profiles").resolve(), qa_agent.profiles_root())
@@ -61,12 +168,12 @@ class ProfileLoadingTests(unittest.TestCase):
             accepted = Path(temporary) / "accepted"
             accepted.mkdir()
             approved = approved_profile(accepted, root)
-            draft = root / ("repo-" + "0" * 64)
+            draft = root / "PendingReview"
             draft.mkdir()
             (draft / "profile.yaml").write_text("draft", encoding="utf-8")
             self.assertEqual([approved], qa_agent.available_profiles(root))
 
-    def test_loads_profile_knowledge_by_identity_key(self):
+    def test_loads_named_profile_with_identity_checks(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             repository = root / "DemoMobileAutomation"
@@ -77,6 +184,77 @@ class ProfileLoadingTests(unittest.TestCase):
 
             self.assertEqual(profile, loaded_dir)
             self.assertEqual(list(qa_agent.KNOWLEDGE_FILES), [name for name, _ in contents])
+
+    def test_new_profile_destination_uses_repository_name_without_writes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            repository = root / "AndroidHotstarMobile"
+            repository.mkdir()
+            store = root / "profiles"
+
+            self.assertEqual(store / repository.name, qa_agent.profile_path(repository, store))
+            self.assertFalse(store.exists())
+
+    def test_renamed_profile_loads_without_changing_approval_contents(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            repository = root / "hotstar-android-mobile"
+            repository.mkdir()
+            store = root / "profiles"
+            profile = approved_profile(repository, store)
+            approval = (profile / qa_agent.APPROVAL_MARKER).read_bytes()
+            renamed = store / "AndroidHotstarMobile"
+            profile.rename(renamed)
+
+            self.assertEqual(renamed, qa_agent.profile_path(repository, store))
+            self.assertEqual(renamed, qa_agent.load_profile(repository, store)[0])
+            self.assertEqual([renamed], qa_agent.available_profiles(store))
+            self.assertEqual(approval, (renamed / qa_agent.APPROVAL_MARKER).read_bytes())
+
+    def test_named_profile_collision_does_not_overwrite_another_repository(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            first = root / "work" / "MobileAutomation"
+            second = root / "personal" / "MobileAutomation"
+            first.mkdir(parents=True)
+            second.mkdir(parents=True)
+            store = root / "profiles"
+            profile = approved_profile(first, store)
+            original = (profile / "profile.yaml").read_bytes()
+
+            with self.assertRaises(ValueError):
+                qa_agent.profile_path(second, store)
+
+            self.assertEqual(original, (profile / "profile.yaml").read_bytes())
+            self.assertEqual(profile, qa_agent.load_profile(first, store)[0])
+
+    def test_duplicate_profile_identity_requires_resolution(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            repository = root / "MobileAutomation"
+            repository.mkdir()
+            store = root / "profiles"
+            profile = approved_profile(repository, store)
+            shutil.copytree(profile, store / "AnotherLabel")
+
+            with self.assertRaises(ValueError):
+                qa_agent.profile_path(repository, store)
+            with self.assertRaises(ValueError):
+                qa_agent.available_profiles(store)
+
+    def test_symlinked_profile_folders_are_not_listed_or_selected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            repository = root / "MobileAutomation"
+            repository.mkdir()
+            external = approved_profile(repository, root / "external")
+            store = root / "profiles"
+            store.mkdir()
+            link = store / "FriendlyName"
+            link.symlink_to(external, target_is_directory=True)
+
+            self.assertEqual([], qa_agent.available_profiles(store))
+            self.assertEqual(store / repository.name, qa_agent.profile_path(repository, store))
 
     def test_missing_profile_is_reported(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -98,7 +276,7 @@ class ProfileLoadingTests(unittest.TestCase):
                 self.assertEqual([profile], qa_agent.available_profiles())
                 self.assertEqual(profile, qa_agent.load_profile(str(repository))[0])
 
-    def test_review_draft_is_not_loaded_as_accepted_knowledge(self):
+    def test_malformed_named_profile_folder_requires_collision_resolution(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             repository = root / "PendingReview"
@@ -107,8 +285,32 @@ class ProfileLoadingTests(unittest.TestCase):
             profile.mkdir(parents=True)
             (profile / "profile.yaml").write_text("draft", encoding="utf-8")
 
-            with self.assertRaises(FileNotFoundError):
+            with self.assertRaisesRegex(ValueError, "already belongs to another or unidentified repository"):
                 qa_agent.load_profile(str(repository), root / "profiles")
+
+    def test_valid_identity_draft_is_not_loaded_without_approval(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            repository = root / "PendingReview"
+            repository.mkdir()
+            store = root / "profiles"
+            profile = approved_profile(repository, store)
+            (profile / qa_agent.APPROVAL_MARKER).unlink()
+
+            self.assertEqual(profile, qa_agent.profile_path(repository, store))
+            with self.assertRaises(FileNotFoundError):
+                qa_agent.load_profile(repository, store)
+
+    def test_profile_names_are_windows_safe(self):
+        path = mock.Mock()
+        for original, expected in (("CON", "_CON"), ("name.", "name"), ("Mobile:App", "Mobile_App")):
+            with self.subTest(name=original), mock.patch.object(qa_agent, "Path", return_value=path):
+                path.expanduser.return_value.resolve.return_value.name = original
+                self.assertEqual(expected, qa_agent._profile_name("target"))
+        with mock.patch.object(qa_agent, "Path", return_value=path):
+            path.expanduser.return_value.resolve.return_value.name = "template"
+            with self.assertRaises(ValueError):
+                qa_agent._profile_name("target")
 
 
 class ProfileCommandTests(unittest.TestCase):

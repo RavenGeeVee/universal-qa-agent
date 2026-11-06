@@ -10,6 +10,7 @@ from pathlib import Path
 from pathlib import PurePosixPath, PureWindowsPath
 import re
 import secrets
+import stat
 import subprocess
 import sys
 from urllib.parse import urlsplit
@@ -26,10 +27,79 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_DIR = ROOT / "schemas"
 APPROVAL_MARKER = ".profile-approved"
 KNOWLEDGE_FILES = ("profile.yaml", "conventions.md", "patterns.md")
+DISCOVERY_EXCLUDES = {
+    "Library", "AppData", "node_modules", "vendor", "venv", "build", "dist",
+    "plugins", "repo-profiles",
+}
+
+
+def _is_source_checkout(path):
+    return (
+        (path / "scripts/install_agent_skills.py").is_file()
+        and (path / "repo-profiles/template/profile.yaml").is_file()
+    )
+
+
+def _unique_checkout(candidates):
+    if len(candidates) > 1:
+        paths = ", ".join(str(path) for path in sorted(candidates))
+        raise ValueError(
+            f"multiple Universal QA Agent checkouts found: {paths}; "
+            "select repo-profiles with --profiles-dir or UQA_PROFILES_DIR"
+        )
+    return next(iter(candidates)) if candidates else None
+
+
+def _searchable_directory(path):
+    if path.is_symlink():
+        return False
+    if os.name == "nt":
+        return not (path.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+    return True
+
+
+def _find_source_checkout():
+    if _is_source_checkout(ROOT):
+        return ROOT.resolve()
+
+    home = Path.home()
+    linked = set()
+    for host in (".agents", ".claude", ".copilot"):
+        for name in ("qa-onboard-repo", "jira-test-generator"):
+            skill = home / host / "skills" / name
+            if skill.is_dir():
+                source = skill.resolve().parent.parent
+                if _is_source_checkout(source):
+                    linked.add(source)
+    if linked:
+        return _unique_checkout(linked)
+
+    candidates = set()
+    for directory, children, _ in os.walk(home, followlinks=False):
+        path = Path(directory)
+        if path.name.casefold() == "universal-qa-agent" and _is_source_checkout(path):
+            candidates.add(path.resolve())
+            children[:] = []
+            continue
+        children[:] = [
+            name for name in children
+            if not name.startswith(".") and name not in DISCOVERY_EXCLUDES
+            and _searchable_directory(path / name)
+        ]
+    checkout = _unique_checkout(candidates)
+    if checkout is None:
+        raise FileNotFoundError(
+            "Universal QA Agent source checkout not found; keep a universal-qa-agent "
+            "checkout under your home directory, install personal skill links, "
+            "or select repo-profiles with --profiles-dir or UQA_PROFILES_DIR"
+        )
+    return checkout
 
 
 def profiles_root(override=None):
-    value = override or os.environ.get("UQA_PROFILES_DIR") or "~/.local/share/universal-qa-agent/repo-profiles"
+    value = override or os.environ.get("UQA_PROFILES_DIR")
+    if not value:
+        return _find_source_checkout() / "repo-profiles"
     path = Path(value).expanduser()
     if not path.is_absolute():
         raise ValueError("profile store must be an absolute path")
@@ -88,9 +158,46 @@ def _normalize_remote(url):
     return f"{host.lower()}/{path}"
 
 
+def _profile_directories(root):
+    if not root.exists():
+        return []
+    return [
+        path for path in root.iterdir()
+        if path.name != "template" and path.is_dir() and _searchable_directory(path)
+    ]
+
+
+def _profile_name(repo):
+    name = Path(repo).expanduser().resolve(strict=True).name
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name).rstrip(" .")
+    if not name or name.casefold() == "template":
+        raise ValueError("target repository needs a non-reserved profile folder name")
+    reserved = {"CON", "PRN", "AUX", "NUL"} | {f"{prefix}{number}" for prefix in ("COM", "LPT") for number in range(1, 10)}
+    return "_" + name if name.split(".")[0].upper() in reserved else name
+
+
 def profile_path(repo, store=None, remote=None):
     identity = repository_identity(repo, remote)
-    return profiles_root(store) / f"repo-{identity['key'][7:]}"
+    root = profiles_root(store)
+    matches = []
+    for directory in _profile_directories(root):
+        try:
+            profile = _load_yaml(directory / "profile.yaml")
+            if profile["repository"]["identity"] == identity:
+                matches.append(directory)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    if len(matches) > 1:
+        raise ValueError("multiple profiles match this repository identity; keep one profile in the selected store")
+    if matches:
+        return matches[0]
+    destination = root / _profile_name(repo)
+    if destination.exists() or destination.is_symlink():
+        raise ValueError(
+            f"profile folder already belongs to another or unidentified repository: {destination}; "
+            "rename that folder descriptively or select a different profile store"
+        )
+    return destination
 
 
 def available_profiles(store=None):
@@ -98,17 +205,20 @@ def available_profiles(store=None):
     if not root.is_dir():
         return []
     approved = []
-    for path in root.glob("repo-*"):
+    identities = set()
+    for path in _profile_directories(root):
         try:
             profile = _load_yaml(path / "profile.yaml")
             identity = profile["repository"]["identity"]
             if identity != _identity(identity["kind"], identity["value"], identity["scope"]):
                 continue
             _verify_profile(path, identity)
-            if path.name == f"repo-{identity['key'][7:]}" and (path / APPROVAL_MARKER).is_file():
-                approved.append(path)
         except (OSError, ValueError, KeyError, TypeError, RuntimeError, json.JSONDecodeError):
             continue
+        if identity["key"] in identities:
+            raise ValueError("multiple approved profiles share a repository identity; keep one profile in the selected store")
+        identities.add(identity["key"])
+        approved.append(path)
     return sorted(approved)
 
 
@@ -171,7 +281,7 @@ def _verify_profile(directory, identity):
 
 def load_profile(repo, store=None, remote=None):
     identity = repository_identity(repo, remote)
-    directory = profiles_root(store) / f"repo-{identity['key'][7:]}"
+    directory = profile_path(repo, store, remote)
     if not (directory / APPROVAL_MARKER).is_file():
         raise FileNotFoundError(f"no approved profile for {repo}; expected {directory}")
     return directory, _verify_profile(directory, identity)
@@ -182,7 +292,7 @@ def approve_profile(repo, approval_reference, store=None, remote=None):
     if not approval_reference:
         raise ValueError("approval reference must describe the user's explicit approval")
     identity = repository_identity(repo, remote)
-    directory = profiles_root(store) / f"repo-{identity['key'][7:]}"
+    directory = profile_path(repo, store, remote)
     files = _profile_files(directory)
     profile = _load_yaml(directory / "profile.yaml")
     errors = _validate(profile, "repository-profile.schema.json")

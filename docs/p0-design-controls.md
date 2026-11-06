@@ -6,11 +6,11 @@ This document defines the cross-agent behavior required before the Universal QA 
 
 - Prefer the `origin` remote. If `origin` is absent and there is exactly one remote, use that remote; if several remotes exist without `origin`, ask which one defines repository identity. Strip embedded credentials, query strings, and fragments; lowercase the host, convert supported SSH and HTTPS URL forms to the same host/path form, and remove a trailing `.git`. Preserve repository path case. Unsupported remote forms fall back to canonical filesystem identity rather than guessed normalization.
 - Without a usable remote, use the canonical filesystem root as a local-only identity. Do not infer identity from a folder name.
-- Include the target's relative path from the Git root as `scope` (`.` for a whole repository). Calculate the profile key as `sha256(UTF-8(kind + NUL + normalized_value + NUL + scope))`. Store profiles under a Windows-safe directory named `repo-<64 lowercase hex digest>`; store the prefixed `sha256:<digest>` in the profile contract. Retain the folder name and local root only as display/current-checkout metadata.
+- Include the target's relative path from the Git root as `scope` (`.` for a whole repository). Calculate the profile key as `sha256(UTF-8(kind + NUL + normalized_value + NUL + scope))`. Store the prefixed `sha256:<digest>` inside the profile contract and approval record. New profile folders use the target repository directory name. Existing readable custom labels are supported; the label is not the identity.
 - Require exactly one identity match. Missing, duplicate, malformed, or mismatched identity blocks profile loading and triggers an explicit resolution request.
-- Schema 1.0 profiles lack the identity contract. Treat them as migration drafts: inspect and bind them to a verified identity, validate them, then require approval before making them loadable. Never silently migrate or overwrite accepted knowledge; preserve the old profile and write the migrated draft to its identity-keyed directory.
+- Resolve profiles by inspecting the identity in direct profile folders. Reuse a unique matching folder regardless of its readable label. If another identity occupies the default repository name, stop without overwriting it and ask for a descriptive folder rename or a separate store. A folder-only rename does not invalidate content-bound approval.
 
-The repository profile schema is version 1.2 and requires scoped identity fields. The helper resolves profiles by the derived identity key, not the folder name.
+The repository profile schema is version 1.2 and requires scoped identity fields. The helper uses readable folder names for storage and the derived identity key for matching and verification.
 
 ## 2. Scoped approval across hosts
 
@@ -46,9 +46,9 @@ Treat `unknown` as unavailable for claims and consequential actions. If Jira is 
 
 ## Acceptance criteria for runtime implementation
 
-- Two repositories with the same folder name resolve to distinct identities and never load each other's profiles.
+- Two repositories with the same folder name retain distinct identities and never load each other's profiles; a default-name collision fails safely until the profile folders are given distinct readable labels or separate stores.
 - Two checkouts with the same normalized Git remote resolve to one profile; an unversioned/local-only checkout uses a path identity.
-- A stale, malformed, duplicated, or legacy profile cannot be loaded without identity resolution and explicit migration approval.
+- A stale, malformed, duplicated, or unapproved profile cannot be loaded; identity and approval must be resolved before continuing.
 - Every generated contract artifact is schema-validated; invalid output fails closed with actionable paths/codes.
 - Cross-artifact references and approval digests are checked deterministically.
 - A plan cannot authorize a different file or command than the user approved.

@@ -2,7 +2,7 @@
 
 The portable plugin packages the two workflows in root [`skills/`](../../skills): `qa-onboard-repo` and `jira-test-generator`. Root `plugin.json` supplies package identity; the repository marketplace makes it discoverable for local installation.
 
-Skills resolve bundled helpers and schemas from their loaded file location. Persistent knowledge defaults to `~/.local/share/universal-qa-agent/repo-profiles`, with `UQA_PROFILES_DIR` as an absolute-path override. Jira access and editing permissions depend on the active Codex session. No MCP server or separate LLM API is bundled.
+Skills resolve bundled helpers and schemas from their loaded file location. Persistent knowledge lives in the discovered source checkout's `repo-profiles` directory, with `UQA_PROFILES_DIR` or `--profiles-dir` as an absolute-path override. The plugin cache is not a profile store; default discovery needs a source checkout. Jira access and editing permissions depend on the active Codex session. No MCP server or separate LLM API is bundled.
 
 See [installation and skill setup](../../docs/local-development.md). For standalone skills, run `python3 scripts/install_agent_skills.py --agent codex`. Avoid enabling duplicate standalone and plugin skills in Codex.
 

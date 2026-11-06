@@ -16,7 +16,7 @@ git clone https://github.com/RavenGeeVee/universal-qa-agent.git
 cd universal-qa-agent
 ```
 
-The source checkout holds the shared skills and installers. Personal installation creates links to that checkout; keep the whole checkout available so skills can resolve their helper and schemas.
+The source checkout holds the shared skills and installers. Personal installation creates links to that checkout; keep the whole checkout available so skills can resolve their helper and schemas. The helper also uses a discovered source checkout for profile storage. A plugin installation needs a local source checkout for default discovery, or an explicit profile-store override.
 
 Examples use standard command names. If you use RTK, prefix supported shell commands with `rtk`. No installation, dependency, or verification command is run merely by reading this guide.
 
@@ -113,7 +113,29 @@ The profile helper performs deterministic checks. The coding agent uses its own 
 
 ## Shared profiles across agents
 
-Profiles default to `~/.local/share/universal-qa-agent/repo-profiles`, including on Windows, where Python expands `~` to the user home directory. Each profile directory is keyed by repository identity and target scope. Approved records bind `profile.yaml`, `conventions.md`, and `patterns.md` to the accepted contents.
+Profiles are stored in the selected Universal QA Agent source checkout's `repo-profiles` directory, on both macOS/Linux and Windows:
+
+```text
+<source-checkout>/repo-profiles/<repository-name>/
+```
+
+The helper resolves the store in this order:
+
+1. An explicit absolute `--profiles-dir` argument.
+2. An absolute `UQA_PROFILES_DIR` environment value.
+3. The source checkout containing the running helper. It can have a different folder name.
+4. A source checkout resolved from personal skill links under `~/.agents/skills`, `~/.claude/skills`, or `~/.copilot/skills`.
+5. A recursive search within the user's home directory for a source folder named `universal-qa-agent`.
+
+A source candidate must contain `scripts/install_agent_skills.py` and `repo-profiles/template/profile.yaml`. These markers distinguish the editable checkout from an installed plugin or packaged release. The home search does not follow directory symlinks and skips hidden/cache/dependency directories, `Library`, `AppData`, `plugins`, and `repo-profiles`. A checkout outside this search can still be found through its personal skill link; otherwise select its profile directory explicitly.
+
+If discovery has no match, the helper asks for a source checkout or an explicit store. If it finds multiple candidates at a discovery step, it requires an override instead of guessing. Discovery does not create directories, move profiles, or write into plugin caches. Treat installed plugin files as read-only; onboarding writes to the resolved profile store.
+
+New profile directories use the target repository directory name, for example `repo-profiles/hotstar-android-mobile/`. An existing descriptive folder such as `repo-profiles/AndroidHotstarMobile/` is located by the repository identity stored inside `profile.yaml`. The helper scans direct profile directories and requires one identity match; it does not use the folder label as identity.
+
+The SHA-256 identity key remains internal to the profile and approval record. Approved records bind `profile.yaml`, `conventions.md`, and `patterns.md` to the accepted contents; renaming only the enclosing folder does not change those contents. Duplicate folders for one identity are ambiguous. If another identity occupies the default name, the helper refuses to overwrite it. Rename the existing profile folder descriptively or choose another store, then retry. This also applies to monorepo subprojects with matching directory names.
+
+All local profiles in the checkout are ignored by Git, while packaging includes only `repo-profiles/template/`. Existing profiles in another store remain untouched; select that store explicitly or copy the reviewed profile folder into the selected store while preserving its approval record and avoiding duplicate identities.
 
 Git identity uses `origin` when present, or the only configured remote. If several remotes exist without `origin`, select one explicitly with `--remote`. Monorepo subdirectories have separate scopes. Without a usable remote the helper uses the canonical filesystem path. Different SSH host aliases can produce different normalized identities; keep the defining remote consistent when sharing a profile across checkouts.
 
@@ -161,7 +183,7 @@ git pull --ff-only
 python3 -m pip install -r requirements-core.txt
 ```
 
-The links continue to use the same source path. If you move the checkout, inspect the existing link destinations and reinstall from the new location; do not overwrite unrelated skills. Profiles are held separately from the source and release package.
+The links continue to use the same source path. If you move the checkout, inspect the existing link destinations and reinstall from the new location; do not overwrite unrelated skills. Profiles stay in the selected source checkout's `repo-profiles` directory or explicit store, outside the release package. Preserve that directory when moving or replacing a checkout.
 
 ## Troubleshooting
 
@@ -171,7 +193,8 @@ The links continue to use the same source path. If you move the checkout, inspec
 | Skill does not appear | Start a fresh session, inspect the relevant personal skills directory or enabled plugin, and confirm the client supports that skill location. Check organization policy and duplicate skill names. |
 | Installer refuses an existing destination | Inspect whether it belongs to this checkout or another skill. Resolve the conflict explicitly; the installer preserves unrelated paths. |
 | YAML/schema dependency error | Use the prepared environment's Python and install its requirements. Confirm the agent uses that interpreter, not the system interpreter. |
-| Profile store access denied | Grant scoped access to the configured store or select an approved absolute location. Keep the store consistent across agents. |
+| Profile store access denied | Grant scoped access to the discovered checkout's `repo-profiles` directory or select an approved absolute location. Keep the store consistent across agents. |
+| Source checkout is missing or ambiguous | Keep one discoverable source checkout, or select the intended `repo-profiles` directory with `UQA_PROFILES_DIR` or `--profiles-dir`. Installed plugin caches are not source candidates. |
 | Profile is missing or cannot be loaded | Onboard the exact repository identity/scope and review the reported validation or approval mismatch before proceeding. |
 | Jira cannot be retrieved | Connect an available Jira integration or supply the issue description and acceptance criteria. |
 

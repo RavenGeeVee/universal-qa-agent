@@ -1,6 +1,6 @@
 # Repository onboarding workflow
 
-1. Resolve a repository identity from a normalized credential-free Git remote and target subpath, or from its canonical root when no remote is available. Show the identity and profile key; do not identify profiles by folder name.
+1. Resolve a repository identity from a normalized credential-free Git remote and target subpath, or from its canonical root when no remote is available. Show the identity and readable profile path. Reuse the unique existing identity match; otherwise use the target repository directory name. A custom folder label is permitted, but never identify a profile from that label alone. Stop on duplicate identity matches or a name already occupied by another profile.
 2. Inventory manifests, directory layout, automation files, test configuration, and declared commands.
 3. Inspect representative feature files, tests, step definitions, page objects, helpers, clients, and test data. Record paths and relevant symbols/lines as evidence.
 4. Infer language, frameworks, build system, test runner, BDD implementation, structure, naming, reusable patterns, restrictions, and execution commands only when supported by evidence.

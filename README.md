@@ -16,7 +16,7 @@ Each coding agent supplies its own model and tools. The local Python helper hand
 | Claude Code | `python3 scripts/install_agent_skills.py --agent claude` | Personal skills under `~/.claude/skills` |
 | GitHub Copilot | `python3 scripts/install_agent_skills.py --agent copilot` | Local Copilot surfaces supporting personal skills under `~/.copilot/skills` |
 
-Install once per machine and use the workflows across your automation repositories. Choose either the Codex plugin or Codex standalone skills to avoid duplicate entries. Personal skill links require keeping this checkout at a stable location. Local home-directory links do not provision cloud agent environments.
+Install once per machine and use the workflows across your automation repositories. Choose either the Codex plugin or Codex standalone skills to avoid duplicate entries. Personal skill links require keeping this checkout at a stable location. Profile discovery uses a local source checkout even for plugin installations, unless you select a store explicitly. Local home-directory links do not provision cloud agent environments.
 
 ## Prerequisites and Python setup
 
@@ -171,15 +171,21 @@ The agent requests approval for profile acceptance, target edits, exact verifica
 
 ## Use across repositories and agents
 
-Open each target repository in your chosen agent and onboard it. Profiles are shared locally under:
+Open each target repository in your chosen agent and onboard it. The helper locates the Universal QA Agent source checkout and stores profiles in its `repo-profiles` directory:
 
 ```text
-~/.local/share/universal-qa-agent/repo-profiles/repo-<identity-digest>/
+<discovered-universal-qa-agent-checkout>/repo-profiles/<repository-name>/
 ```
 
-Identity uses a normalized Git remote and target subpath, or a canonical filesystem path when no usable remote exists. Monorepo subprojects have separate scopes. Agents on the same machine can use the same approved profile when they resolve the same identity and profile store.
+For example, a profile can live at `/Users/chethank1/Documents/universal-qa-agent/repo-profiles/AndroidHotstarMobile/`. New profiles default to the target repository directory name, such as `hotstar-android-mobile`. The helper finds an existing profile by the identity recorded inside `profile.yaml`, so a readable custom folder name also works.
 
-Set `UQA_PROFILES_DIR` to an absolute path to choose another store, and make it available to each agent process. Profiles stay outside the plugin installation and target repository. For remote selection, environment configuration, and helper commands, see [the setup guide](docs/local-development.md).
+Identity uses a normalized Git remote and target subpath, or a canonical filesystem path when no usable remote exists. Its SHA-256 key stays inside the profile and approval record, rather than in the folder name. Monorepo subprojects have separate scopes. Agents on the same machine can use the same approved profile when they resolve the same identity and profile store.
+
+Folder names are labels, not proof of identity. A folder-only rename preserves approval because the approved files are unchanged. Multiple folders claiming the same identity are ambiguous. If an unrelated profile already occupies the target name, the helper stops without overwriting it; give the existing folder a descriptive name or choose another profile store before continuing.
+
+An explicit `--profiles-dir` takes precedence over `UQA_PROFILES_DIR`. Without an override, discovery checks the running source checkout, resolved personal skill links, then searches the user home directory for a source folder named `universal-qa-agent`. Plugin caches and release copies are excluded. Missing or ambiguous checkouts produce an actionable error rather than choosing an unrelated location.
+
+Profiles are private local files ignored by Git; packaging includes only the empty template. Existing profiles are not moved automatically. Keep the source checkout or set an absolute profile-store override available to each agent process. For discovery details, remote selection, and helper commands, see [the setup guide](docs/local-development.md#shared-profiles-across-agents).
 
 ## Updates
 
