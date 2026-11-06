@@ -1,4 +1,4 @@
-"""Stage a skills-only plugin without private checkout profiles or settings."""
+"""Package a Git-distributable plugin without private profiles or settings."""
 
 from pathlib import Path
 import shutil
@@ -43,7 +43,7 @@ def package_plugin(source_root: Path, output_root: Path) -> Path:
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     try:
-        print(package_plugin(root, root / "dist"))
+        print(package_plugin(root, root / "plugins"))
         return 0
     except (OSError, ValueError) as error:
         print(f"Plugin packaging failed: {error}", file=sys.stderr)

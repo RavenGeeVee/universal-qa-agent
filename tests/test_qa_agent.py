@@ -284,6 +284,32 @@ class PluginPackageTests(unittest.TestCase):
             self.assertTrue((root / "skills" / skill / "SKILL.md").is_file())
         self.assertTrue((root / "schemas" / "repository-profile.schema.json").is_file())
 
+    def test_marketplace_release_contains_current_public_resources(self):
+        root = SCRIPT.parents[1]
+        catalog = json.loads((root / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
+        entry = next(plugin for plugin in catalog["plugins"] if plugin["name"] == "universal-qa-agent")
+        self.assertEqual({"source": "local", "path": "./plugins/universal-qa-agent"}, entry["source"])
+        release = root / entry["source"]["path"]
+        expected = {Path(name) for name in packager.PACKAGE_FILES}
+        for name in packager.PACKAGE_DIRECTORIES:
+            expected.update(
+                path.relative_to(root) for path in (root / name).rglob("*")
+                if path.is_file() and "__pycache__" not in path.parts
+                and path.suffix != ".pyc" and path.name != ".DS_Store"
+            )
+        actual = {path.relative_to(release) for path in release.rglob("*") if path.is_file()}
+        self.assertEqual(expected, actual)
+        for relative in expected:
+            with self.subTest(resource=str(relative)):
+                self.assertEqual((root / relative).read_bytes(), (release / relative).read_bytes())
+
+    def test_package_command_targets_the_versioned_plugin_directory(self):
+        root = PACKAGE_SCRIPT.resolve().parents[1]
+        destination = root / "plugins/universal-qa-agent"
+        with mock.patch.object(packager, "package_plugin", return_value=destination) as package, contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(0, packager.main())
+        package.assert_called_once_with(root, root / "plugins")
+
     def test_distribution_includes_resources_and_excludes_private_data(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()

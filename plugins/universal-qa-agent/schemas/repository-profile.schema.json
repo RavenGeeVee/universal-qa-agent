@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://universal-qa-agent.dev/schemas/repository-profile.schema.json",
+  "title": "Repository profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "repository", "technology", "structure", "commands", "conventions_file", "patterns_file", "examples_directory", "restrictions", "knowledge_gaps", "evidence"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.2" },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "root", "identity"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "root": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "identity": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "value", "scope", "key"],
+          "properties": {
+            "kind": { "enum": ["git_remote", "filesystem_path"] },
+            "value": { "type": "string", "minLength": 1 },
+            "scope": { "type": "string", "minLength": 1 },
+            "key": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          }
+        }
+      }
+    },
+    "technology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["languages", "frameworks", "build_systems", "test_runners", "bdd_implementations"],
+      "properties": {
+        "languages": { "$ref": "#/$defs/stringList" }, "frameworks": { "$ref": "#/$defs/stringList" },
+        "build_systems": { "$ref": "#/$defs/stringList" }, "test_runners": { "$ref": "#/$defs/stringList" },
+        "bdd_implementations": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "structure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_files", "test_code", "step_definitions", "page_objects", "helpers", "api_clients", "test_data"],
+      "properties": {
+        "feature_files": { "$ref": "#/$defs/stringList" }, "test_code": { "$ref": "#/$defs/stringList" },
+        "step_definitions": { "$ref": "#/$defs/stringList" }, "page_objects": { "$ref": "#/$defs/stringList" },
+        "helpers": { "$ref": "#/$defs/stringList" }, "api_clients": { "$ref": "#/$defs/stringList" }, "test_data": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discovery", "validation"],
+      "properties": { "discovery": { "$ref": "#/$defs/commandList" }, "validation": { "$ref": "#/$defs/commandList" } }
+    },
+    "conventions_file": { "type": "string", "minLength": 1 },
+    "patterns_file": { "type": "string", "minLength": 1 },
+    "examples_directory": { "type": "string", "minLength": 1 },
+    "restrictions": { "$ref": "#/$defs/stringList" },
+    "knowledge_gaps": { "$ref": "#/$defs/stringList" },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } }
+  },
+  "$defs": {
+    "stringList": { "type": "array", "items": { "type": "string" } },
+    "commandList": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["name", "argv", "working_directory", "evidence"],
+        "properties": { "name": { "type": "string", "minLength": 1 }, "argv": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "working_directory": { "type": "string", "minLength": 1 }, "evidence": { "$ref": "#/$defs/evidenceRef" } }
+      }
+    },
+    "evidenceRef": {
+      "type": "object", "additionalProperties": false, "required": ["path"],
+      "properties": { "path": { "type": "string", "minLength": 1 }, "detail": { "type": "string" } }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false, "required": ["claim", "path"],
+      "properties": { "claim": { "type": "string", "minLength": 1 }, "path": { "type": "string", "minLength": 1 }, "detail": { "type": "string" } }
+    }
+  }
+}

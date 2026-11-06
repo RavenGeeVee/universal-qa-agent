@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://universal-qa-agent.dev/schemas/requirement-analysis.schema.json",
+  "title": "Requirement analysis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "issue", "requirements", "acceptance_criteria", "dependencies", "ambiguities", "questions", "host_capabilities"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.2" },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "sources", "retrieval"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" },
+        "summary": { "type": "string" },
+        "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
+        "retrieval": {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "unavailable_sources", "limitations"],
+          "properties": {
+            "status": { "enum": ["retrieved", "user_provided", "partial", "unavailable"] },
+            "unavailable_sources": { "type": "array", "items": { "type": "string" } },
+            "limitations": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "host_capabilities": {
+      "type": "object", "additionalProperties": false,
+      "required": ["jira_read", "repository_read", "repository_write", "profile_store_write", "command_execution", "target_write_gate", "command_gate"],
+      "properties": {
+        "jira_read": { "$ref": "#/$defs/capability" },
+        "repository_read": { "$ref": "#/$defs/capability" },
+        "repository_write": { "$ref": "#/$defs/capability" },
+        "profile_store_write": { "$ref": "#/$defs/capability" },
+        "command_execution": { "$ref": "#/$defs/capability" },
+        "target_write_gate": { "$ref": "#/$defs/capability" },
+        "command_gate": { "$ref": "#/$defs/capability" }
+      }
+    },
+    "requirements": { "type": "array", "items": { "$ref": "#/$defs/statement" } },
+    "acceptance_criteria": { "type": "array", "items": { "$ref": "#/$defs/statement" } },
+    "dependencies": { "type": "array", "items": { "$ref": "#/$defs/statement" } },
+    "ambiguities": { "type": "array", "items": { "$ref": "#/$defs/statement" } },
+    "questions": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  },
+  "$defs": {
+    "capability": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "limitations"],
+      "properties": {
+        "status": { "enum": ["available", "unavailable", "unknown"] },
+        "provider": { "type": "string" },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reference"],
+      "properties": {
+        "kind": { "enum": ["jira_description", "acceptance_criteria", "comment", "linked_issue", "user_input", "repository", "other"] },
+        "reference": { "type": "string", "minLength": 1 },
+        "excerpt": { "type": "string" }
+      }
+    },
+    "statement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "sources", "interpretation"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "text": { "type": "string", "minLength": 1 },
+        "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/source" } },
+        "interpretation": { "type": "boolean" }
+      }
+    }
+  }
+}

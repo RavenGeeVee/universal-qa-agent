@@ -14,4 +14,4 @@ Storage defaults to `~/.local/share/universal-qa-agent/repo-profiles`. An absolu
 
 Codex plugin installation is separate; avoid enabling duplicate plugin and standalone skills.
 
-`package_plugin.py` stages an allowlisted plugin at `dist/universal-qa-agent` for the repository marketplace. It excludes private profiles, developer settings, and bytecode, and refuses to overwrite an existing package. Packaging requires approval before execution under this repository's policy.
+`package_plugin.py` writes an allowlisted plugin at `plugins/universal-qa-agent` for the repository marketplace. Commit that release folder with the catalog so GitHub installations receive the package. It excludes private profiles, developer settings, and bytecode, and refuses to overwrite an existing package. Packaging requires approval before execution under this repository's policy.

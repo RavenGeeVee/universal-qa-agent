@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://universal-qa-agent.dev/schemas/test-case.schema.json",
+  "title": "Automation test cases",
+  "$comment": "requirement_ids may reference IDs from requirements or acceptance_criteria; IDs are unique across both lists and are checked by the core validator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "issue_key", "cases"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.2" },
+    "issue_key": { "type": "string", "minLength": 1 },
+    "cases": { "type": "array", "items": { "$ref": "#/$defs/case" } }
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "category", "requirement_ids", "steps"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "category": { "enum": ["positive", "negative", "boundary", "regression"] },
+        "requirement_ids": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "uniqueItems": true },
+        "preconditions": { "type": "array", "items": { "type": "string" } },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action", "expected"],
+            "properties": { "action": { "type": "string", "minLength": 1 }, "expected": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "data_notes": { "type": "array", "items": { "type": "string" } },
+        "automation_notes": { "type": "string" }
+      }
+    }
+  }
+}

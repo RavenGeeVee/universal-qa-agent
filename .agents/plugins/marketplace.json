@@ -8,7 +8,7 @@
       "name": "universal-qa-agent",
       "source": {
         "source": "local",
-        "path": "./dist/universal-qa-agent"
+        "path": "./plugins/universal-qa-agent"
       },
       "policy": {
         "installation": "AVAILABLE",

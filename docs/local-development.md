@@ -1,19 +1,19 @@
 # Install the local plugin
 
-The package uses root `plugin.json` and root `skills/`, following the [official Agent Plugins packaging guide](https://developers.openai.com/plugins/build/plugins). The catalog at `.agents/plugins/marketplace.json` exposes the package as `universal-qa-agent` in the `universal-qa-local` marketplace. Its source is the clean staged package at `dist/universal-qa-agent`; paths resolve from the marketplace repository root.
+The package uses root `plugin.json` and root `skills/`, following the [official Agent Plugins packaging guide](https://developers.openai.com/plugins/build/plugins). The catalog at `.agents/plugins/marketplace.json` exposes the package as `universal-qa-agent` in the `universal-qa-local` marketplace. Its source is the clean, versioned package at `plugins/universal-qa-agent`; paths resolve from the marketplace repository root.
 
 ## Plugin installation
 
-1. Prepare the distributable with `rtk python3 scripts/package_plugin.py` after approving that exact packaging command. It stages the manifest, skills, schemas, profile helper, local dependency declaration, and empty profile template under `dist/universal-qa-agent`. It excludes private drafts, developer settings, and bytecode. It refuses to overwrite an existing output; preserve or explicitly remove that output before rebuilding.
-2. Keep this checkout at a stable location. Register its marketplace with `codex plugin marketplace add /absolute/path/to/universal-qa-agent` where supported, or open the repository in the ChatGPT desktop app to discover its repo marketplace.
+1. The clean distributable lives under `plugins/universal-qa-agent`. To refresh it for a release, prepare a new package with `rtk python3 scripts/package_plugin.py` after approving that exact packaging command. It stages the manifest, skills, schemas, profile helper, local dependency declaration, and empty profile template under `plugins/universal-qa-agent`. It excludes private drafts, developer settings, and bytecode. It refuses to overwrite an existing output; preserve or explicitly remove that output before rebuilding.
+2. Register the GitHub marketplace with `rtk codex plugin marketplace add RavenGeeVee/universal-qa-agent` where supported. For local development, use `rtk codex plugin marketplace add /absolute/path/to/universal-qa-agent`, or open the repository in the desktop app to discover its repo marketplace.
 3. Restart the desktop app, choose **Universal QA Local** in the Plugins Directory, and install **universal-qa-agent**.
 4. Start a new Codex conversation in the target automation repository. Select the plugin's onboarding skill, then its Jira generation skill when an approved profile exists. Use the skill names shown by the host; plugin skills may be namespaced.
 
 Availability varies by client. Registering a marketplace is distinct from installing its plugin. This repository change does not register, install, authenticate, or publish anything on your machine.
 
-Distribute only the staged `dist/universal-qa-agent` folder. Git ignores this output; team distribution must arrange for the staged package to be available and point its marketplace at that clean package. No public publication is required for local use. The catalog will not resolve until packaging has been authorized and completed.
+Commit the clean `plugins/universal-qa-agent` release folder and `.agents/plugins/marketplace.json` together. This folder is intended to be tracked in Git; `dist/` stays ignored and is no longer a marketplace source. The release includes only reusable files and the empty profile template, never private draft profiles. Publishing to GitHub makes the catalog available after the commit is pushed; it does not publish to OpenAI's public directory.
 
-When updating the source, rebuild the staged package, then refresh/reinstall the plugin through the host and start a new conversation. The host may execute an installed cache copy rather than this checkout. Keep saved profiles outside the installed package.
+Keep root `skills/`, `schemas/`, `scripts/qa_agent.py`, `requirements-core.txt`, the template, and root `plugin.json` as the canonical sources. When updating them, review and explicitly remove or preserve the previous release folder before rebuilding (the packager refuses to overwrite), commit the refreshed package with its sources, then refresh/reinstall the plugin through the host and start a new conversation. The host may execute an installed cache copy rather than this checkout. Keep saved profiles outside the installed package.
 
 ## Persistent profile storage
 

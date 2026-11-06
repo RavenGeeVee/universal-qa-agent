@@ -4,7 +4,7 @@ An agent-agnostic QA workflow for turning Jira requirements into tests that foll
 
 ## Install and use
 
-Stage a clean Codex package with `scripts/package_plugin.py`; the local catalog points to `dist/universal-qa-agent`. For personal skill links, use `scripts/install_agent_skills.py --agent claude`, `--agent copilot`, or `--agent codex`; omitting `--agent` installs Claude Code and GitHub Copilot as before. See [local setup](docs/local-development.md). Python 3.10 or newer is required for the bundled helpers.
+The Git-backed marketplace loads the clean, versioned package in `plugins/universal-qa-agent`. Refresh it from the canonical sources with `scripts/package_plugin.py` before releasing changes. For personal skill links, use `scripts/install_agent_skills.py --agent claude`, `--agent copilot`, or `--agent codex`; omitting `--agent` installs Claude Code and GitHub Copilot as before. See [local setup](docs/local-development.md). Python 3.10 or newer is required for the bundled helpers.
 
 1. Install the `universal-qa-agent` plugin and open your target automation repository in Codex.
 2. Invoke `qa-onboard-repo`. Review the identity and evidence-backed profile; approve it through the helper after local schema validation succeeds.
