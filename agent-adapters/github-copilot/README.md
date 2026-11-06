@@ -7,3 +7,5 @@ Ask Copilot to onboard the current automation repository or generate automation 
 Jira retrieval, repository editing, and command execution depend on the Copilot surface and its available tools and permissions.
 
 The skill itself does not enforce tool-level approval. Report `approval_gate` as unavailable unless the active Copilot surface demonstrably blocks writes and command execution pending approval. Otherwise, pause before each scoped action for direct user approval and report the instruction-level limitation.
+
+See the [installation and usage guide](../../README.md#github-copilot-installation) for prerequisites and agent-specific steps, and [environment setup](../../docs/local-development.md) for Python, Windows, and shared profiles.

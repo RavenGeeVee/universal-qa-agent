@@ -1,25 +1,139 @@
-# Install the local plugin
+# Installation and operation guide
 
-The package uses root `plugin.json` and root `skills/`, following the [official Agent Plugins packaging guide](https://developers.openai.com/plugins/build/plugins). The catalog at `.agents/plugins/marketplace.json` exposes the package as `universal-qa-agent` in the `universal-qa-local` marketplace. Its source is the clean, versioned package at `plugins/universal-qa-agent`; paths resolve from the marketplace repository root.
+Universal QA Agent provides the same two workflows through a Codex plugin or personal skills for Codex, Claude Code, and GitHub Copilot. Install on the machine where the coding agent runs, then open any target automation repository in that agent. The [README](../README.md) gives per-agent commands and first-use prompts; this guide covers environment setup and operation.
 
-## Plugin installation
+## Prerequisites
 
-1. The clean distributable lives under `plugins/universal-qa-agent`. To refresh it for a release, prepare a new package with `rtk python3 scripts/package_plugin.py` after approving that exact packaging command. It stages the manifest, skills, schemas, profile helper, local dependency declaration, and empty profile template under `plugins/universal-qa-agent`. It excludes private drafts, developer settings, and bytecode. It refuses to overwrite an existing output; preserve or explicitly remove that output before rebuilding.
-2. Register the GitHub marketplace with `rtk codex plugin marketplace add RavenGeeVee/universal-qa-agent` where supported. For local development, use `rtk codex plugin marketplace add /absolute/path/to/universal-qa-agent`, or open the repository in the desktop app to discover its repo marketplace.
-3. Restart the desktop app, choose **Universal QA Local** in the Plugins Directory, and install **universal-qa-agent**.
-4. Start a new Codex conversation in the target automation repository. Select the plugin's onboarding skill, then its Jira generation skill when an approved profile exists. Use the skill names shown by the host; plugin skills may be namespaced.
+- Git and Python 3.10 or newer.
+- An installed, signed-in coding agent supporting local Agent Skills or Codex plugins.
+- Read access to the target repository and write access to the local profile store. Implementation additionally needs target-file write access.
+- A connected Jira integration in the active session, or the issue key, description, and acceptance criteria supplied in the request.
 
-Availability varies by client. Registering a marketplace is distinct from installing its plugin. This repository change does not register, install, authenticate, or publish anything on your machine.
+Clone into a stable location:
 
-Commit the clean `plugins/universal-qa-agent` release folder and `.agents/plugins/marketplace.json` together. This folder is intended to be tracked in Git; `dist/` stays ignored and is no longer a marketplace source. The release includes only reusable files and the empty profile template, never private draft profiles. Publishing to GitHub makes the catalog available after the commit is pushed; it does not publish to OpenAI's public directory.
+```sh
+git clone https://github.com/RavenGeeVee/universal-qa-agent.git
+cd universal-qa-agent
+```
 
-Keep root `skills/`, `schemas/`, `scripts/qa_agent.py`, `requirements-core.txt`, the template, and root `plugin.json` as the canonical sources. When updating them, review and explicitly remove or preserve the previous release folder before rebuilding (the packager refuses to overwrite), commit the refreshed package with its sources, then refresh/reinstall the plugin through the host and start a new conversation. The host may execute an installed cache copy rather than this checkout. Keep saved profiles outside the installed package.
+The source checkout holds the shared skills and installers. Personal installation creates links to that checkout; keep the whole checkout available so skills can resolve their helper and schemas.
 
-## Persistent profile storage
+Examples use standard command names. If you use RTK, prefix supported shell commands with `rtk`. No installation, dependency, or verification command is run merely by reading this guide.
 
-The default on every platform is `~/.local/share/universal-qa-agent/repo-profiles`. Python expands `~` to the user's home directory, including on Windows. Set `UQA_PROFILES_DIR` to a different absolute directory if needed. Relative overrides are rejected to avoid changing storage when the target working directory changes.
+## Python environment
 
-The bundled helper resolves resources relative to the loaded skill's actual location, including symlink installs. From this checkout, illustrative commands are:
+Use a dedicated environment for PyYAML and jsonschema. On macOS/Linux, from the checkout:
+
+```sh
+python3 -m venv ~/.venvs/universal-qa-agent
+source ~/.venvs/universal-qa-agent/bin/activate
+python3 -m pip install -r requirements-core.txt
+```
+
+Launch a terminal-based agent from that activated shell. For a GUI agent or existing editor process, specify the helper interpreter explicitly in your first request:
+
+```text
+Use /absolute/home/.venvs/universal-qa-agent/bin/python
+for Universal QA Agent helper commands.
+```
+
+Replace `/absolute/home` with your actual home directory. Activating an environment in one terminal does not configure an already-running desktop app. You can also use the full interpreter path for every helper command without activation:
+
+```sh
+~/.venvs/universal-qa-agent/bin/python /absolute/path/to/universal-qa-agent/scripts/qa_agent.py profiles
+```
+
+The installed Codex plugin includes `requirements-core.txt` and its helper; a Python environment with those dependencies must still be available to the local agent runtime.
+
+## Windows installation
+
+From the checkout in PowerShell:
+
+```powershell
+py -3 -m venv "$HOME\.venvs\universal-qa-agent"
+& "$HOME\.venvs\universal-qa-agent\Scripts\python.exe" -m pip install -r requirements-core.txt
+```
+
+Use the full environment interpreter to select your agent:
+
+```powershell
+& "$HOME\.venvs\universal-qa-agent\Scripts\python.exe" scripts/install_agent_skills.py --agent codex
+& "$HOME\.venvs\universal-qa-agent\Scripts\python.exe" scripts/install_agent_skills.py --agent claude
+& "$HOME\.venvs\universal-qa-agent\Scripts\python.exe" scripts/install_agent_skills.py --agent copilot
+```
+
+Run only the commands for the agents you want. Ask your coding agent to use that same full interpreter path for helper commands. The installer tries directory symlinks and uses Windows junctions if symlink creation is unavailable. Quote paths containing spaces.
+
+## Codex plugin
+
+Register the GitHub marketplace:
+
+```sh
+codex plugin marketplace add RavenGeeVee/universal-qa-agent
+```
+
+Restart the ChatGPT desktop app. In the Plugins Directory, choose **Universal QA Local** and install **universal-qa-agent**. Start a fresh Codex conversation in the target repository and select the plugin's onboarding skill. Use the exact name shown in the skill picker, including a namespace if displayed.
+
+The catalog identifier is `universal-qa-local`; its source package is `plugins/universal-qa-agent`. Marketplace registration and plugin installation are separate steps. See the [official Codex marketplace guidance](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli).
+
+For a source checkout used in plugin development, you can register a local marketplace instead:
+
+```sh
+codex plugin marketplace add /absolute/path/to/universal-qa-agent
+```
+
+Use the GitHub registration for Git-backed updates. Client availability and organization settings can affect plugin discovery.
+
+## Personal skills
+
+From an activated Python environment in the source checkout:
+
+| Agent | Command | Personal destination |
+| --- | --- | --- |
+| Codex | `python3 scripts/install_agent_skills.py --agent codex` | `~/.agents/skills` |
+| Claude Code | `python3 scripts/install_agent_skills.py --agent claude` | `~/.claude/skills` |
+| GitHub Copilot | `python3 scripts/install_agent_skills.py --agent copilot` | `~/.copilot/skills` |
+
+No `--agent` flag selects Claude Code and GitHub Copilot together. The installer preflights selected destinations and refuses unrelated occupied paths. Use one Codex installation method to avoid duplicate plugin and standalone skills. Copilot also recognizes some shared skill locations, so check for duplicate entries when installing multiple local agents.
+
+Start a fresh session after installation. In Codex, invoke `$qa-onboard-repo` and then `$jira-test-generator QA-123`. In Claude Code, invoke `/qa-onboard-repo` and then `/jira-test-generator QA-123`. In a supported local Copilot client, request the skill by name in agent chat. The [README](../README.md) has full prompt examples.
+
+These commands install personal skills on your local machine. Cloud sessions run in separate environments and need their own source resources, Python environment, and profile-store access.
+
+## First use in each repository
+
+1. Open the target automation repository in your selected agent. Tell it which Python environment to use.
+2. Invoke `qa-onboard-repo`. The agent inspects code and configuration, then presents repository identity, framework, conventions, reusable patterns, evidence, and open questions.
+3. Review the draft. After your explicit approval, the helper validates it and writes a content-bound approval record.
+4. Invoke `jira-test-generator` with an issue key. Supply issue content if Jira retrieval is unavailable.
+5. Review requirements, traceable cases, existing coverage, proposed files, and command scopes. Approve implementation before target edits.
+6. Approve the exact argument vector and working directory before verification runs. Review actual results and unresolved gaps afterward.
+
+The profile helper performs deterministic checks. The coding agent uses its own model and tools for analysis, planning, and code changes. Profile-store writes, target edits, commands, and Jira access remain subject to the active host's permissions.
+
+## Shared profiles across agents
+
+Profiles default to `~/.local/share/universal-qa-agent/repo-profiles`, including on Windows, where Python expands `~` to the user home directory. Each profile directory is keyed by repository identity and target scope. Approved records bind `profile.yaml`, `conventions.md`, and `patterns.md` to the accepted contents.
+
+Git identity uses `origin` when present, or the only configured remote. If several remotes exist without `origin`, select one explicitly with `--remote`. Monorepo subdirectories have separate scopes. Without a usable remote the helper uses the canonical filesystem path. Different SSH host aliases can produce different normalized identities; keep the defining remote consistent when sharing a profile across checkouts.
+
+To use a custom store, export an absolute path before launching the agent.
+
+macOS/Linux:
+
+```sh
+export UQA_PROFILES_DIR="$HOME/qa-agent-profiles"
+```
+
+Windows PowerShell:
+
+```powershell
+$env:UQA_PROFILES_DIR = "$HOME\qa-agent-profiles"
+```
+
+Set the same value in every agent process that should share the store. Desktop apps launched separately may need the setting supplied through their own environment or helper arguments. The helper accepts `--profiles-dir` before a subcommand; relative store paths are rejected.
+
+From the source checkout, examples using the configured Python environment are:
 
 ```sh
 python3 scripts/qa_agent.py profiles
@@ -28,40 +142,45 @@ python3 scripts/qa_agent.py profile --repo /absolute/path/to/target
 python3 scripts/qa_agent.py --profiles-dir /absolute/profile-store profiles
 ```
 
-Use Python 3.10 or newer and install local dependencies with `python3 -m pip install -r requirements-core.txt` (Windows: `py -3 -m pip install -r requirements-core.txt`). `profile-path` prints an identity-keyed destination without creating it. After the user reviews and approves a draft, `approve-profile --approval-reference "<approval note>"` validates it and writes a marker bound to the exact profile contents. Sandbox restrictions may require scoped write approval for the chosen profile location; the workflow must not silently fall back to the plugin cache.
+`profile-path` prints a destination without creating it. The onboarding workflow creates drafts; `approve-profile --repo <target> --approval-reference "<approval note>"` is used only after the user has reviewed and explicitly approved the profile. Keep private knowledge out of the plugin package.
 
-## Existing local profiles
+## Updates
 
-Existing `repo-profiles/<target-name>/` folders stay untouched and are not discovered by the identity-keyed loader. Profile schemas before 1.2 lack scoped identity; treat those profiles as migration drafts. Bind each profile to a verified repository identity, validate the updated schema, and obtain approval before making it loadable. No automatic migration is performed.
-
-Git remotes use `origin`, or the only configured remote. When multiple non-origin remotes exist, pass `--remote` to select one. Monorepo subdirectories have separate profile scopes.
-
-## Personal skill links for Codex, Claude Code, and GitHub Copilot
-
-The two workflows have one canonical source in root `skills/`. From the Universal QA Agent checkout, install personal links with:
+For a Git-backed Codex marketplace:
 
 ```sh
-# Default: Claude Code and GitHub Copilot
-python3 scripts/install_agent_skills.py
-
-# Or select exactly one host
-python3 scripts/install_agent_skills.py --agent claude
-python3 scripts/install_agent_skills.py --agent copilot
-python3 scripts/install_agent_skills.py --agent codex
+codex plugin marketplace upgrade universal-qa-local
 ```
 
-On Windows, use `py -3 scripts/install_agent_skills.py`. The installer links those workflows to Claude Code (`~/.claude/skills`) and GitHub Copilot (`~/.copilot/skills`); it falls back to Windows junctions and refuses to replace occupied skill paths. The links point back to this checkout, so keep it at a stable location. Codex can use its plugin or standalone links selected with `--agent codex`; avoid enabling both.
+Refresh/reinstall the plugin in the desktop interface as appropriate and start a new conversation. The host can load a cached installation rather than your source checkout.
 
-Open the target repository in Claude Code and invoke `/qa-onboard-repo`; after reviewing and approving the profile, invoke `/jira-test-generator`. In Copilot, ask it to onboard the current repository or generate automation from a Jira issue; its skill selection is based on each skill's description. Both adapters use the same profile store and approval flow as Codex. Jira retrieval and file/command permissions depend on the active host surface.
-
-Installing personal links modifies the user's home directory; this repository change does not install them automatically.
-
-## Verification
-
-The helper validates schemas and resolves profiles by identity. Tests and live host installation have not been run as part of this change. With explicit approval for the exact command, the helper/package tests can be run from this checkout:
+For personal skills, update the source checkout and its Python environment:
 
 ```sh
-rtk python3 -m unittest discover -s tests -p 'test_qa_agent.py'
+git pull --ff-only
+python3 -m pip install -r requirements-core.txt
 ```
 
-Live acceptance also needs a fresh target-project conversation: onboard a draft, approve and load it, plan using supplied issue content or a real Jira connection, confirm edits and commands remain approval-gated, and confirm a plugin refresh preserves saved profiles. Do not run target builds or tests without approval.
+The links continue to use the same source path. If you move the checkout, inspect the existing link destinations and reinstall from the new location; do not overwrite unrelated skills. Profiles are held separately from the source and release package.
+
+## Troubleshooting
+
+| Symptom | Action |
+| --- | --- |
+| Marketplace is not configured as a Git marketplace | Register the GitHub source instead of a local folder: remove the `universal-qa-local` registration, then run the GitHub `marketplace add` command. This changes the catalog registration, not saved QA profiles. |
+| Skill does not appear | Start a fresh session, inspect the relevant personal skills directory or enabled plugin, and confirm the client supports that skill location. Check organization policy and duplicate skill names. |
+| Installer refuses an existing destination | Inspect whether it belongs to this checkout or another skill. Resolve the conflict explicitly; the installer preserves unrelated paths. |
+| YAML/schema dependency error | Use the prepared environment's Python and install its requirements. Confirm the agent uses that interpreter, not the system interpreter. |
+| Profile store access denied | Grant scoped access to the configured store or select an approved absolute location. Keep the store consistent across agents. |
+| Profile is missing or cannot be loaded | Onboard the exact repository identity/scope and review the reported validation or approval mismatch before proceeding. |
+| Jira cannot be retrieved | Connect an available Jira integration or supply the issue description and acceptance criteria. |
+
+## Release maintenance
+
+Root `skills/`, `schemas/`, `scripts/qa_agent.py`, `requirements-core.txt`, `repo-profiles/template/`, and `plugin.json` are the canonical package sources. The clean release at `plugins/universal-qa-agent` is included in Git with `.agents/plugins/marketplace.json`.
+
+Refresh the release with `python3 scripts/package_plugin.py` after obtaining approval for that exact packaging command. The packager includes only public resources and refuses to overwrite an existing package. Preserve or explicitly remove the previous release directory before rebuilding, then commit the refreshed release alongside the source changes. Personal links use the root sources; Codex marketplace installations use the packaged copy.
+
+## Verification policy
+
+Builds, tests, lint, formatting, and validation commands require approval for the exact command before execution. The test command is documented in [tests/README.md](../tests/README.md). Keep command completion, passing tests, and live host workflow verification distinct in reports.

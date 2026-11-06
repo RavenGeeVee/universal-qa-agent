@@ -7,3 +7,5 @@ In Claude Code, invoke `/qa-onboard-repo` to create a repository profile draft a
 Claude Code has no Jira or target-repository access granted by this adapter. The active session must provide the needed tools and permissions.
 
 The skill itself does not enforce tool-level approval. Report `approval_gate` as unavailable unless the active Claude Code permission configuration demonstrably blocks writes and command execution pending approval. Otherwise, pause before each scoped action for direct user approval and report the instruction-level limitation.
+
+See the [installation and usage guide](../../README.md#claude-code-installation) for prerequisites and agent-specific steps, and [environment setup](../../docs/local-development.md) for Python, Windows, and shared profiles.
