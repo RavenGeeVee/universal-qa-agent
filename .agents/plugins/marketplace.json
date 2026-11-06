@@ -1,0 +1,20 @@
+{
+  "name": "universal-qa-local",
+  "interface": {
+    "displayName": "Universal QA Local"
+  },
+  "plugins": [
+    {
+      "name": "universal-qa-agent",
+      "source": {
+        "source": "local",
+        "path": "./dist/universal-qa-agent"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

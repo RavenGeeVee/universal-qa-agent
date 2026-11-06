@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://universal-qa-agent.dev/schemas/automation-plan.schema.json",
+  "title": "Automation plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "issue_key", "items", "approval_required", "approval", "unresolved_gaps"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.1" },
+    "issue_key": { "type": "string", "minLength": 1 },
+    "items": { "type": "array", "items": { "$ref": "#/$defs/item" } },
+    "approval_required": { "type": "boolean" },
+    "approval": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "scopes", "approval_digest"],
+      "properties": {
+        "status": { "enum": ["not_required", "pending", "approved", "rejected"] },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["kind", "resource"],
+            "properties": {
+              "kind": { "enum": ["target_edit", "validation_command", "profile_update", "shared_knowledge"] },
+              "resource": { "type": "string", "minLength": 1 },
+              "argv": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+              "working_directory": { "type": "string", "minLength": 1 }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "kind": { "const": "validation_command" } } },
+                "then": { "required": ["argv", "working_directory"] }
+              }
+            ]
+          }
+        },
+        "approval_reference": { "type": "string", "minLength": 1 },
+        "approval_digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "approved_at": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "approved" } } },
+          "then": { "required": ["approval_reference", "approved_at"] }
+        }
+      ]
+    },
+    "unresolved_gaps": { "type": "array", "items": { "type": "string" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "approval_required": { "const": true } } },
+      "then": { "properties": { "approval": { "properties": { "status": { "enum": ["pending", "approved", "rejected"] }, "scopes": { "minItems": 1 } } } } },
+      "else": { "properties": { "approval": { "properties": { "status": { "const": "not_required" }, "scopes": { "maxItems": 0 } } } }
+    }
+  ],
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test_case_id", "action", "rationale", "target_files", "evidence"],
+      "properties": {
+        "test_case_id": { "type": "string", "minLength": 1 },
+        "action": { "enum": ["reuse", "extend", "create"] },
+        "rationale": { "type": "string", "minLength": 1 },
+        "target_files": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "evidence": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+        "approval_reason": { "type": "string" }
+      }
+    }
+  }
+}

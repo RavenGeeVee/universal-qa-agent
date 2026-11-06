@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://universal-qa-agent.dev/schemas/knowledge-proposal.schema.json",
+  "title": "Controlled knowledge proposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "classification", "claim", "evidence", "existing_knowledge_review", "changes", "approval"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "classification": { "enum": ["repository_specific", "universal"] },
+    "repository_identity_key": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "claim": { "type": "string", "minLength": 1 },
+    "evidence": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["source", "reference"],
+        "properties": {
+          "source": { "enum": ["repository", "issue", "user_input", "other"] },
+          "reference": { "type": "string", "minLength": 1 },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "existing_knowledge_review": {
+      "type": "object", "additionalProperties": false,
+      "required": ["checked", "duplicates", "conflicts"],
+      "properties": {
+        "checked": { "type": "boolean", "const": true },
+        "duplicates": { "type": "array", "items": { "type": "string" } },
+        "conflicts": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "changes": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["path", "action", "summary"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "action": { "enum": ["add", "update", "remove"] },
+          "summary": { "type": "string", "minLength": 1 },
+          "example_reference": { "type": "string" }
+        }
+      }
+    },
+    "approval": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "approval_digest"],
+      "properties": {
+        "status": { "enum": ["pending", "approved", "rejected"] },
+        "approval_digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "approval_reference": { "type": "string", "minLength": 1 },
+        "approved_at": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "approved" } } },
+          "then": { "required": ["approval_reference", "approved_at"] }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "classification": { "const": "repository_specific" } } },
+      "then": { "required": ["repository_identity_key"] },
+      "else": { "not": { "required": ["repository_identity_key"] } }
+    }
+  ]
+}
