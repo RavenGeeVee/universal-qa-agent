@@ -188,7 +188,7 @@ class ProfileLoadingTests(unittest.TestCase):
     def test_new_profile_destination_uses_repository_name_without_writes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            repository = root / "AndroidHotstarMobile"
+            repository = root / "MobileAutomation"
             repository.mkdir()
             store = root / "profiles"
 
@@ -198,12 +198,12 @@ class ProfileLoadingTests(unittest.TestCase):
     def test_renamed_profile_loads_without_changing_approval_contents(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
-            repository = root / "hotstar-android-mobile"
+            repository = root / "mobile-automation"
             repository.mkdir()
             store = root / "profiles"
             profile = approved_profile(repository, store)
             approval = (profile / qa_agent.APPROVAL_MARKER).read_bytes()
-            renamed = store / "AndroidHotstarMobile"
+            renamed = store / "MobileAutomation"
             profile.rename(renamed)
 
             self.assertEqual(renamed, qa_agent.profile_path(repository, store))

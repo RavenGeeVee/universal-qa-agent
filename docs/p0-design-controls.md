@@ -27,7 +27,7 @@ Each adapter reports Jira read, repository read/write, profile-store write, comm
 
 ## 3. Deterministic artifact validation
 
-Validate each generated JSON artifact against its versioned schema before it is treated as ready. Resolve only local references:
+Validate each generated internal JSON artifact against its versioned schema before it is treated as ready. User-facing test cases follow the verified project template or generic CSV fallback; map their core semantics to the internal test-case contract and disclose mapping gaps. The JSON validator does not validate CSV or project-specific imports directly. Resolve only local references:
 
 1. Repository profile before it can receive the accepted-profile marker.
 2. Requirement analysis and test cases before the automation plan is prepared.

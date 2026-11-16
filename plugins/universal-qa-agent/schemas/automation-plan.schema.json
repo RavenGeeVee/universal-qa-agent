@@ -51,7 +51,7 @@
     {
       "if": { "properties": { "approval_required": { "const": true } } },
       "then": { "properties": { "approval": { "properties": { "status": { "enum": ["pending", "approved", "rejected"] }, "scopes": { "minItems": 1 } } } } },
-      "else": { "properties": { "approval": { "properties": { "status": { "const": "not_required" }, "scopes": { "maxItems": 0 } } } }
+      "else": { "properties": { "approval": { "properties": { "status": { "const": "not_required" }, "scopes": { "maxItems": 0 } } } } }
     }
   ],
   "$defs": {

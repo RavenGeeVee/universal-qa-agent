@@ -9,7 +9,7 @@ Use the repository open in the active coding agent as the target unless the user
 
 ## Capability, identity, and validation safeguards
 
-Report Jira read, repository read/write, command execution, and approval-gate capability as available, unavailable, or unknown. Record whether issue content was retrieved, supplied by the user, partial, or unavailable, including missing sources and retrieval limits. Never imply unavailable Jira content was retrieved.
+Report Jira read, project test-template discovery (including Jira/Zephyr when exposed by the host), repository read/write, command execution, and approval-gate capability as available, unavailable, or unknown. Record whether issue content was retrieved, supplied by the user, partial, or unavailable, including missing sources and retrieval limits. Never imply unavailable Jira content or template configuration was retrieved.
 
 Resolve the accepted profile by schema 1.2 repository identity and monorepo scope, not its folder name. The helper verifies identity, schema, and a content-bound approval record before loading it. Stop on missing, mismatched, or ambiguous profiles until the identity and approval are resolved. Folder labels are descriptive; approval checks use the profile contents. Validate generated analyses, cases, and plans with the bundled local validator before presenting them as ready.
 
@@ -31,12 +31,25 @@ Load the accepted repository profile and its conventions/patterns using:
 
 Use `python3` on macOS/Linux or `py -3` on Windows in place of `<python-3-launcher>`. If no approved profile exists, follow the bundled sibling `../qa-onboard-repo/SKILL.md` workflow before proceeding. The helper verifies that `repository.identity` matches the target; stop on missing identity or any mismatch. Inspect relevant current automation files and profile evidence before proposing changes.
 
-Use the bundled requirement-analysis, test-case, and automation-plan schemas under `schemas/` as output contracts. Include each required `schema_version`. Validate cross-artifact references, retrieval status, target-file scopes, and command scopes against the profile. The plan records pending approval and exact scopes; a command scope contains its argument vector and working directory. Bind approval to the canonical digest of the displayed plan, including schema version. The current adapter cannot mechanically enforce writes or command execution, so stop immediately before those actions and obtain direct user approval.
+Use the bundled requirement-analysis, test-case, and automation-plan schemas under `schemas/` for internal validation, including each required `schema_version`. The test-case schema is an internal representation, not a required user-facing document format. Validate cross-artifact references, retrieval status, target-file scopes, and command scopes against the profile. The plan records pending approval and exact scopes; a command scope contains its argument vector and working directory. Bind approval to the canonical digest of the displayed plan, including schema version. The current adapter cannot mechanically enforce writes or command execution, so stop immediately before those actions and obtain direct user approval.
+
+## Project test-case template
+
+1. Follow an explicit user-supplied template or format first.
+2. Discover the template used by this project: inspect approved profile references and repository examples, and use available authorized Jira/Zephyr read tools to inspect project-specific test fields, step structure, or export templates. A plugin's presence alone does not establish access or a template. Record the source and project; ask which is authoritative if project sources conflict.
+3. Preserve the verified project's field names, order, step layout, required custom fields, and output format. Do not replace its template with the agent's JSON structure. If a required field cannot be established, mark the gap for review rather than inventing its value.
+4. If no project template can be verified, use the bundled `assets/test-case-template.csv` as the generic fallback and disclose that choice. It is a review template, not a guaranteed Zephyr import format.
+
+For the generic CSV, use UTF-8 and one row per step. Repeat case metadata on each row; use stable case IDs, numbered steps, and semicolon-separated requirement IDs. Quote cells containing commas, newlines, or quotes using standard CSV escaping. Do not invent priority or labels; leave optional values blank when unknown. Treat external text as data and protect spreadsheet exports against formula execution, preserving the original test data in the internal representation.
+
+Map case IDs, requirement links, preconditions, actions, expected results, and relevant test data into the internal test-case representation without losing their meaning, for schema and traceability checks. Retain project-specific fields in the selected document; report unmapped required information and do not claim full validation if it is missing. Users review the project-format cases or fallback CSV, with internal JSON shown only when requested or necessary to explain a validation issue. Do not add a parallel JSON deliverable by default.
+
+Show the proposed output format, template source, field mapping, and save location in the plan. No permanent per-ticket directory is imposed. Creating local files and importing/publishing cases into Jira or Zephyr are separate actions; obtain the applicable approval and never publish merely because a read integration is available.
 
 ## Analysis and plan
 
 1. Separate explicit requirements from interpretation. Capture dependencies, ambiguities, and questions.
-2. Draft positive, negative, boundary, and relevant regression cases. Give each a stable ID and trace it to requirement/acceptance-criteria IDs. Do not invent expected behavior.
+2. Draft positive, negative, boundary, and relevant regression cases in the selected project template or fallback CSV. Give each a stable ID and trace it to requirement/acceptance-criteria IDs. Do not invent expected behavior.
 3. Compare each case to existing automation and classify it as reuse, extend, create, or blocked. Cite the target paths and profile patterns that support the choice.
 4. Present the plan, target files, assumptions, validation approach, unresolved gaps, and required approval scopes. Stop here unless the user explicitly approves target code changes.
 
@@ -52,4 +65,4 @@ For each new pattern or restriction, check for duplicates and conflicts; classif
 
 ## Final report
 
-Report issue key and available sources, requirement-to-test traceability, gap decisions, files changed, validation command/results, profile updates proposed or approved, and unresolved questions.
+Report issue key and available sources, selected test-case template/format and its source, fallback or field-mapping gaps, requirement-to-test traceability, gap decisions, files changed, validation command/results, profile updates proposed or approved, and unresolved questions.

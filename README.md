@@ -169,6 +169,19 @@ For Jira work, the agent connects each scenario to its requirements, compares it
 
 The agent requests approval for profile acceptance, target edits, exact verification commands, and knowledge updates. Tool-level enforcement depends on the host's permission configuration; conversational approval alone is not a technical gate.
 
+## Artifacts to expect
+
+| Skill/phase | Output | Document types | Where it goes |
+| --- | --- | --- | --- |
+| `qa-onboard-repo` | Repository profile, conventions, reusable patterns, and approval record | `profile.yaml` (YAML), `conventions.md` and `patterns.md` (Markdown), `.profile-approved` (JSON content in a hidden extensionless file) | Agent checkout's `repo-profiles/<repository-name>/`, or the explicitly selected store. Target code stays unchanged. |
+| `jira-test-generator` test cases | Scenarios and requirement links in the project's established test-case template | Verified project format from repository evidence or authorized Jira/Zephyr reads; generic CSV fallback | Format, template source, and save location are proposed for review. No permanent report directory is prescribed. |
+| `jira-test-generator` analysis and planning | Requirement analysis, coverage decisions, and automation plan | Structured JSON contracts with conversation text/tables for review | No permanent filename or report directory is prescribed. |
+| Approved implementation | New or extended tests and required supporting code/data | Target-native source/data formats, such as Java, Kotlin, TypeScript, Python, Gherkin, JSON, or YAML | Approved locations in the target automation repository. |
+| Approved verification | Validation output and any framework-generated results | Helper JSON output; framework-dependent HTML/XML/JSON reports, logs, images, or traces | Command output and the framework's configured output locations; only when execution occurs and produces them. |
+| Final report and knowledge learning | Traceability, changes, outcomes, gaps, and any proposed knowledge update | Conversation text/tables; JSON knowledge proposals when needed | Conversation by default; accepted profile changes require separate approval. |
+
+Test cases follow an explicit user template first, then a verified project template. If neither is available, the skill uses the bundled [generic CSV template](skills/jira-test-generator/assets/test-case-template.csv). Internal JSON supports validation and traceability; it does not dictate the user-facing case document. Jira planning artifacts are not automatically retained as a per-ticket document bundle. Request the files, formats, and storage location if you need a lasting report. See [Skill artifacts and expected outputs](docs/artifacts.md) for exact file types, example layouts, approval timing, and storage behavior.
+
 ## Use across repositories and agents
 
 Open each target repository in your chosen agent and onboard it. The helper locates the Universal QA Agent source checkout and stores profiles in its `repo-profiles` directory:
@@ -177,7 +190,7 @@ Open each target repository in your chosen agent and onboard it. The helper loca
 <discovered-universal-qa-agent-checkout>/repo-profiles/<repository-name>/
 ```
 
-For example, a profile can live at `/Users/chethank1/Documents/universal-qa-agent/repo-profiles/AndroidHotstarMobile/`. New profiles default to the target repository directory name, such as `hotstar-android-mobile`. The helper finds an existing profile by the identity recorded inside `profile.yaml`, so a readable custom folder name also works.
+New profile folders use the target repository's directory name. Existing profiles are matched by the identity recorded inside `profile.yaml`, so descriptive custom folder names are also supported.
 
 Identity uses a normalized Git remote and target subpath, or a canonical filesystem path when no usable remote exists. Its SHA-256 key stays inside the profile and approval record, rather than in the folder name. Monorepo subprojects have separate scopes. Agents on the same machine can use the same approved profile when they resolve the same identity and profile store.
 
@@ -185,7 +198,7 @@ Folder names are labels, not proof of identity. A folder-only rename preserves a
 
 An explicit `--profiles-dir` takes precedence over `UQA_PROFILES_DIR`. Without an override, discovery checks the running source checkout, resolved personal skill links, then searches the user home directory for a source folder named `universal-qa-agent`. Plugin caches and release copies are excluded. Missing or ambiguous checkouts produce an actionable error rather than choosing an unrelated location.
 
-Profiles are private local files ignored by Git; packaging includes only the empty template. Existing profiles are not moved automatically. Keep the source checkout or set an absolute profile-store override available to each agent process. For discovery details, remote selection, and helper commands, see [the setup guide](docs/local-development.md#shared-profiles-across-agents).
+Profiles are private local files ignored by Git; packaging includes only the empty template. Shared documentation and examples use generic placeholders; actual onboarded repository names, private paths, and identifying details belong in local profile files. Existing profiles are not moved automatically. Keep the source checkout or set an absolute profile-store override available to each agent process. For discovery details, remote selection, and helper commands, see [the setup guide](docs/local-development.md#shared-profiles-across-agents).
 
 ## Updates
 
@@ -223,6 +236,7 @@ The coding agent performs analysis, scenario design, and code editing; determini
 
 ## Further documentation
 
+- [Skill artifacts, document types, and storage locations](docs/artifacts.md)
 - [Installation, Python environments, updates, and troubleshooting](docs/local-development.md)
 - [Repository onboarding](docs/repository-onboarding.md)
 - [Jira-to-automation workflow](docs/jira-automation.md)
