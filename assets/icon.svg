@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Universal QA Agent">
+  <rect width="512" height="512" rx="104" fill="#155E75"/>
+  <path d="M256 76 404 136v106c0 96-58 154-148 194-90-40-148-98-148-194V136Z" fill="#FFFFFF"/>
+  <path d="m174 253 56 56 110-118" fill="none" stroke="#155E75" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

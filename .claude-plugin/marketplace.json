@@ -1,0 +1,15 @@
+{
+  "name": "universal-qa-local",
+  "description": "Repository onboarding and Jira test generation with Universal QA Agent.",
+  "owner": {
+    "name": "RavenGeeVee",
+    "url": "https://github.com/RavenGeeVee"
+  },
+  "plugins": [
+    {
+      "name": "universal-qa-agent",
+      "description": "Learn automation repositories and turn Jira requirements into reviewable tests.",
+      "source": "./plugins/universal-qa-agent"
+    }
+  ]
+}

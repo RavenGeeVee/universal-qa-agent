@@ -1,11 +1,11 @@
 # Installation and operation guide
 
-Universal QA Agent provides the same two workflows through a Codex plugin or personal skills for Codex, Claude Code, and GitHub Copilot. Install on the machine where the coding agent runs, then open any target automation repository in that agent. The [README](../README.md) gives per-agent commands and first-use prompts; this guide covers environment setup and operation.
+Universal QA Agent provides the same two workflows through native plugins for Codex, Claude Code, and GitHub Copilot CLI, or personal skills for supported local clients. Install on the machine where the coding agent runs, then open any target automation repository in that agent. The [README](../README.md) gives per-agent commands and first-use prompts; this guide covers environment setup and operation.
 
 ## Prerequisites
 
 - Git and Python 3.10 or newer.
-- An installed, signed-in coding agent supporting local Agent Skills or Codex plugins.
+- An installed, signed-in coding agent supporting the chosen native plugin or local Agent Skills installation.
 - Read access to the target repository and write access to the local profile store. Implementation additionally needs target-file write access.
 - A connected Jira integration in the active session, or the issue key, description, and acceptance criteria supplied in the request.
 
@@ -43,7 +43,7 @@ Replace `/absolute/home` with your actual home directory. Activating an environm
 ~/.venvs/universal-qa-agent/bin/python /absolute/path/to/universal-qa-agent/scripts/qa_agent.py profiles
 ```
 
-The installed Codex plugin includes `requirements-core.txt` and its helper; a Python environment with those dependencies must still be available to the local agent runtime.
+The shared plugin package includes `requirements-core.txt` and its helper; a Python environment with those dependencies must still be available to the local agent runtime. Plugin installation does not install Python packages, configure Jira connections, or change host permissions.
 
 ## Windows installation
 
@@ -84,6 +84,30 @@ codex plugin marketplace add /absolute/path/to/universal-qa-agent
 
 Use the GitHub registration for Git-backed updates. Client availability and organization settings can affect plugin discovery.
 
+## Claude Code plugin
+
+Register the marketplace and install the plugin:
+
+```sh
+claude plugin marketplace add RavenGeeVee/universal-qa-agent
+claude plugin install universal-qa-agent@universal-qa-local
+```
+
+Open the target repository in a fresh Claude Code session. Invoke `/universal-qa-agent:qa-onboard-repo`, review and approve the profile, then invoke `/universal-qa-agent:jira-test-generator QA-123`. See [Claude Code's marketplace documentation](https://code.claude.com/docs/en/plugin-marketplaces).
+
+## Copilot CLI plugin
+
+Register the marketplace and install the plugin:
+
+```sh
+copilot plugin marketplace add RavenGeeVee/universal-qa-agent
+copilot plugin install universal-qa-agent@universal-qa-local
+```
+
+Open the target repository in a fresh Copilot CLI session. Ask the agent to use `qa-onboard-repo`, then use `jira-test-generator` with a Jira key after profile approval. See [Copilot CLI's plugin reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference). Native CLI installation does not install a VS Code extension or provision cloud agents. Use the personal skill alternative below for local clients that support it.
+
+All three hosts install the same release directory, `plugins/universal-qa-agent`, using marketplace identifier `universal-qa-local`. Codex reads `.agents/plugins/marketplace.json`; Claude Code and Copilot CLI can read `.claude-plugin/marketplace.json`. The catalogs and host manifests provide compatibility metadata; the shared workflows remain in root `skills/`. These repository catalogs support direct GitHub installation; they do not imply listing in a public plugin directory.
+
 ## Personal skills
 
 From an activated Python environment in the source checkout:
@@ -94,7 +118,7 @@ From an activated Python environment in the source checkout:
 | Claude Code | `python3 scripts/install_agent_skills.py --agent claude` | `~/.claude/skills` |
 | GitHub Copilot | `python3 scripts/install_agent_skills.py --agent copilot` | `~/.copilot/skills` |
 
-No `--agent` flag selects Claude Code and GitHub Copilot together. The installer preflights selected destinations and refuses unrelated occupied paths. Use one Codex installation method to avoid duplicate plugin and standalone skills. Copilot also recognizes some shared skill locations, so check for duplicate entries when installing multiple local agents.
+No `--agent` flag selects Claude Code and GitHub Copilot together. The installer preflights selected destinations and refuses unrelated occupied paths. Use one installation method per host to avoid duplicate plugin and standalone skills. Copilot also recognizes some shared skill locations, so check for duplicate entries when installing multiple local agents.
 
 Start a fresh session after installation. In Codex, invoke `$qa-onboard-repo` and then `$jira-test-generator QA-123`. In Claude Code, invoke `/qa-onboard-repo` and then `/jira-test-generator QA-123`. In a supported local Copilot client, request the skill by name in agent chat. The [README](../README.md) has full prompt examples.
 
@@ -176,6 +200,21 @@ codex plugin marketplace upgrade universal-qa-local
 
 Refresh/reinstall the plugin in the desktop interface as appropriate and start a new conversation. The host can load a cached installation rather than your source checkout.
 
+For Claude Code, refresh the catalog and use its plugin manager to update the installed plugin:
+
+```sh
+claude plugin marketplace update universal-qa-local
+```
+
+For Copilot CLI:
+
+```sh
+copilot plugin marketplace update universal-qa-local
+copilot plugin update universal-qa-agent
+```
+
+Restart the relevant agent session after updating. Native plugin updates use the release package; they do not refresh an independent source checkout or install helper dependencies.
+
 For personal skills, update the source checkout and its Python environment:
 
 ```sh
@@ -200,9 +239,9 @@ The links continue to use the same source path. If you move the checkout, inspec
 
 ## Release maintenance
 
-Root `skills/`, `schemas/`, `scripts/qa_agent.py`, `requirements-core.txt`, `repo-profiles/template/`, and `plugin.json` are the canonical package sources. The clean release at `plugins/universal-qa-agent` is included in Git with `.agents/plugins/marketplace.json`.
+Root `skills/`, `schemas/`, `scripts/qa_agent.py`, `requirements-core.txt`, `repo-profiles/template/`, `assets/`, `plugin.json`, `.claude-plugin/plugin.json`, `LICENSE`, and `docs/plugin-readme.md` are the canonical package sources. The package uses `docs/plugin-readme.md` as its standalone `README.md` and includes the MIT license. Version `0.1.5` uses the same clean release at `plugins/universal-qa-agent` for all three hosts. Commit it with the Codex catalog at `.agents/plugins/marketplace.json` and the Claude Code/Copilot CLI catalog at `.claude-plugin/marketplace.json`. Marketplace catalogs stay at the repository root; the packaged Claude manifest provides the plugin's metadata inside the release.
 
-Refresh the release with `python3 scripts/package_plugin.py` after obtaining approval for that exact packaging command. The packager includes only public resources and refuses to overwrite an existing package. Preserve or explicitly remove the previous release directory before rebuilding, then commit the refreshed release alongside the source changes. Personal links use the root sources; Codex marketplace installations use the packaged copy.
+Refresh the release with `python3 scripts/package_plugin.py`, or add `--archive` to also create the versioned submission ZIP under `dist/`, after obtaining approval for that exact packaging command. The packager includes only public resources and refuses to overwrite an existing package or archive. Preserve the previous release directory outside the checkout before rebuilding, then commit the refreshed release alongside the source changes. Personal links use the root sources; native marketplace installations use the packaged copy. Do not duplicate workflows into host-specific directories. See [publishing](publishing.md) for release checks and the separate public directory submission routes.
 
 ## Verification policy
 

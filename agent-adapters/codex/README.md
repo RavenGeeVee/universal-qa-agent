@@ -1,6 +1,6 @@
 # Codex adapter
 
-The portable plugin packages the two workflows in root [`skills/`](../../skills): `qa-onboard-repo` and `jira-test-generator`. Root `plugin.json` supplies package identity; the repository marketplace makes it discoverable for local installation.
+The portable plugin packages the two workflows in root [`skills/`](../../skills): `qa-onboard-repo` and `jira-test-generator`. Root `plugin.json` supplies package identity; `.agents/plugins/marketplace.json` registers marketplace `universal-qa-local` and points to `plugins/universal-qa-agent`. Claude Code and Copilot CLI use that same release through their compatible catalog and manifest metadata.
 
 Skills resolve bundled helpers and schemas from their loaded file location. Persistent knowledge lives in the discovered source checkout's `repo-profiles` directory, with `UQA_PROFILES_DIR` or `--profiles-dir` as an absolute-path override. The plugin cache is not a profile store; default discovery needs a source checkout. Jira access and editing permissions depend on the active Codex session. No MCP server or separate LLM API is bundled.
 

@@ -13,10 +13,12 @@ Each coding agent supplies its own model and tools. The local Python helper hand
 | --- | --- | --- |
 | Codex plugin | Register the GitHub marketplace, then install through the desktop Plugins Directory | Local Codex sessions where the plugin is enabled |
 | Codex standalone skills | `python3 scripts/install_agent_skills.py --agent codex` | Personal skills under `~/.agents/skills` |
-| Claude Code | `python3 scripts/install_agent_skills.py --agent claude` | Personal skills under `~/.claude/skills` |
-| GitHub Copilot | `python3 scripts/install_agent_skills.py --agent copilot` | Local Copilot surfaces supporting personal skills under `~/.copilot/skills` |
+| Claude Code plugin | `claude plugin install universal-qa-agent@universal-qa-local` after marketplace registration | Claude Code sessions where the plugin is enabled |
+| GitHub Copilot CLI plugin | `copilot plugin install universal-qa-agent@universal-qa-local` after marketplace registration | Copilot CLI sessions where the plugin is enabled |
+| Claude Code standalone skills | `python3 scripts/install_agent_skills.py --agent claude` | Personal skills under `~/.claude/skills` |
+| GitHub Copilot personal skills | `python3 scripts/install_agent_skills.py --agent copilot` | Local Copilot clients supporting personal skills under `~/.copilot/skills` |
 
-Install once per machine and use the workflows across your automation repositories. Choose either the Codex plugin or Codex standalone skills to avoid duplicate entries. Personal skill links require keeping this checkout at a stable location. Profile discovery uses a local source checkout even for plugin installations, unless you select a store explicitly. Local home-directory links do not provision cloud agent environments.
+Install once per machine and use the workflows across your automation repositories. Choose one installation method per host to avoid duplicate skills. All three native plugin installations use the same release at `plugins/universal-qa-agent`; host manifests provide compatibility while root `skills/` supplies the shared workflows. Personal skill links require keeping this checkout at a stable location. Profile discovery uses a local source checkout even for plugin installations, unless you select a store explicitly. Local installation does not provision cloud agent environments or enable plugins in every Copilot client.
 
 ## Prerequisites and Python setup
 
@@ -100,35 +102,39 @@ Use the prepared Python interpreter for helper commands. On Windows, invoke the 
 
 ## Claude Code installation
 
-From the Universal QA Agent checkout:
+Register the marketplace and install the plugin:
 
 ```sh
-python3 scripts/install_agent_skills.py --agent claude
+claude plugin marketplace add RavenGeeVee/universal-qa-agent
+claude plugin install universal-qa-agent@universal-qa-local
 ```
 
 Open your target repository in Claude Code and start a fresh session. Invoke:
 
 ```text
-/qa-onboard-repo
+/universal-qa-agent:qa-onboard-repo
 ```
 
 Review and approve the profile, then invoke:
 
 ```text
-/jira-test-generator QA-123
+/universal-qa-agent:jira-test-generator QA-123
 ```
 
-The skills are personal to your machine and available across projects through Claude Code's [personal skill location](https://code.claude.com/docs/en/skills). Jira and repository permissions come from the active Claude Code session.
+This uses Claude Code's [plugin marketplace installation](https://code.claude.com/docs/en/plugin-marketplaces). Jira and repository permissions come from the active Claude Code session.
+
+For standalone personal skills instead, run `python3 scripts/install_agent_skills.py --agent claude` from this checkout. These links live in `~/.claude/skills`; invoke `/qa-onboard-repo` and `/jira-test-generator QA-123` without the plugin namespace. Keep the source checkout available.
 
 ## GitHub Copilot installation
 
-From the Universal QA Agent checkout:
+For Copilot CLI, register the marketplace and install the plugin:
 
 ```sh
-python3 scripts/install_agent_skills.py --agent copilot
+copilot plugin marketplace add RavenGeeVee/universal-qa-agent
+copilot plugin install universal-qa-agent@universal-qa-local
 ```
 
-Open the target repository in a local Copilot client supporting Agent Skills, such as VS Code agent mode or Copilot CLI. Start a new agent conversation and ask:
+Open the target repository in Copilot CLI and start a new agent conversation. Ask:
 
 ```text
 Use the qa-onboard-repo skill to inspect this automation repository
@@ -143,7 +149,9 @@ Prepare scenarios and an automation plan using the approved repository profile.
 Wait for my approval before changing files or running verification commands.
 ```
 
-Copilot selects skills from their names and descriptions. The installer uses GitHub's supported [personal skills directory](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/add-skills). Its availability depends on the local client and organization settings.
+Copilot selects skills from their names and descriptions. These commands use the [Copilot CLI plugin system](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference); they do not install a VS Code extension or configure cloud agents. Availability depends on the client version and organization settings.
+
+For a local client supporting personal Agent Skills, including supported VS Code agent sessions, run `python3 scripts/install_agent_skills.py --agent copilot` from this checkout. The installer links the shared skills into `~/.copilot/skills`. Keep the checkout available, restart the client, and use the same prompts above. This is also an alternative to native installation in Copilot CLI.
 
 To install both Claude Code and Copilot skills together, run the installer without `--agent`:
 
@@ -214,7 +222,22 @@ For the Codex GitHub marketplace:
 codex plugin marketplace upgrade universal-qa-local
 ```
 
-Refresh the installed plugin through the desktop interface and start a new conversation. For personal skill links, update the source checkout and restart the agent session:
+Refresh the installed plugin through the desktop interface and start a new conversation.
+
+For Claude Code, refresh the marketplace, then update the installed plugin through Claude Code's plugin manager:
+
+```sh
+claude plugin marketplace update universal-qa-local
+```
+
+For Copilot CLI:
+
+```sh
+copilot plugin marketplace update universal-qa-local
+copilot plugin update universal-qa-agent
+```
+
+Start a fresh host session after updating. For personal skill links, update the source checkout and restart the agent session:
 
 ```sh
 git pull --ff-only
@@ -232,13 +255,19 @@ Run the install command again if the checkout location changes. The installer re
 | `scripts/install_agent_skills.py` | Personal skill installation for each supported agent |
 | `schemas/` | Profile, requirement analysis, test case, plan, knowledge proposal, and validation result contracts |
 | `repo-profiles/template/` | Empty repository profile template |
-| `plugins/universal-qa-agent/` | Clean Codex release package distributed through GitHub |
-| `.agents/plugins/marketplace.json` | Marketplace catalog referencing the release package |
+| `plugins/universal-qa-agent/` | Shared release package for Codex, Claude Code, and Copilot CLI |
+| `plugin.json` | Portable plugin identity and version |
+| `.agents/plugins/marketplace.json` | Codex marketplace catalog referencing the release package |
+| `.claude-plugin/` | Claude Code manifest and shared Claude Code/Copilot CLI marketplace catalog |
 | `agent-adapters/` | Host-specific setup and capability boundaries |
 | `core/` | Portable workflow and contract design |
 | `tests/` | Helper, installation, packaging, and release consistency tests |
 
 The coding agent performs analysis, scenario design, and code editing; deterministic checks run in the Python helper. Contributors edit the root sources and refresh the release package before publishing. Packaging and repository verification follow the exact-command approval policy; see [release maintenance](docs/local-development.md#release-maintenance).
+
+## Publishing
+
+The shared release package includes Codex and Claude Code manifests and standalone usage documentation. See the [publishing guide](docs/publishing.md) for release preparation, approved verification, GitHub distribution, and the separate OpenAI and Anthropic directory submissions. The [privacy notice](docs/privacy.md) explains local storage and the role of your agent provider and connected tools.
 
 ## Further documentation
 
@@ -250,3 +279,5 @@ The coding agent performs analysis, scenario design, and code editing; determini
 - [Knowledge maintenance](docs/knowledge-maintenance.md)
 - [Identity, validation, capabilities, and approval controls](docs/p0-design-controls.md)
 - [Test commands and coverage](tests/README.md)
+- [Publishing and directory submissions](docs/publishing.md)
+- [Privacy and data handling](docs/privacy.md)

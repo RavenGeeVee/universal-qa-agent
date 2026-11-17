@@ -8,6 +8,8 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest import mock
+import xml.etree.ElementTree as ET
+import zipfile
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "qa_agent.py"
@@ -25,7 +27,7 @@ PACKAGE_SPEC.loader.exec_module(packager)
 
 def approved_profile(repo, store):
     identity = qa_agent.repository_identity(repo)
-    directory = store / Path(repo).resolve().name
+    directory = (store / Path(repo).resolve().name).resolve()
     directory.mkdir(parents=True)
     profile = qa_agent.yaml.safe_load((SCRIPT.parents[1] / "repo-profiles/template/profile.yaml").read_text(encoding="utf-8"))
     profile["repository"].update(name=Path(repo).name, root=str(Path(repo)))
@@ -459,6 +461,10 @@ class PluginPackageTests(unittest.TestCase):
     def create_source(self, root):
         files = (
             "plugin.json",
+            ".claude-plugin/plugin.json",
+            "assets/icon.svg",
+            "docs/plugin-readme.md",
+            "LICENSE",
             "skills/qa-onboard-repo/SKILL.md",
             "skills/jira-test-generator/SKILL.md",
             "schemas/repository-profile.schema.json",
@@ -471,11 +477,13 @@ class PluginPackageTests(unittest.TestCase):
             "repo-profiles/template/conventions.md",
             "repo-profiles/template/patterns.md",
         )
-        for filename in files:
+        contents = {filename: filename for filename in files}
+        contents["plugin.json"] = json.dumps({"name": "universal-qa-agent", "version": "0.1.5"})
+        for filename, content in contents.items():
             path = root / filename
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(filename, encoding="utf-8")
-        return files
+            path.write_text(content, encoding="utf-8")
+        return contents
 
     def test_manifest_and_workflows_are_packaged_together(self):
         root = SCRIPT.parents[1]
@@ -486,31 +494,95 @@ class PluginPackageTests(unittest.TestCase):
             self.assertTrue((root / "skills" / skill / "SKILL.md").is_file())
         self.assertTrue((root / "schemas" / "repository-profile.schema.json").is_file())
 
+    def test_native_manifests_share_plugin_identity(self):
+        root = SCRIPT.parents[1]
+        portable = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
+        claude = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        for field in ("name", "version", "description", "author", "homepage", "repository", "license"):
+            with self.subTest(field=field):
+                self.assertEqual(portable[field], claude[field])
+        self.assertEqual("RavenGeeVee", claude["author"]["name"])
+        self.assertEqual("MIT", portable["license"])
+
+    def test_public_listing_declares_local_execution_and_bundled_icons(self):
+        root = SCRIPT.parents[1]
+        portable = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
+        openai = portable["extensions"]["com.openai"]
+        self.assertIs(True, openai["requires_local_executor"])
+        listing = openai["interface"]
+        self.assertLessEqual(len(listing["displayName"]), 30)
+        self.assertLessEqual(len(listing["shortDescription"]), 30)
+        for field in ("longDescription", "developerName", "category"):
+            self.assertTrue(listing[field])
+        self.assertEqual(portable["author"]["name"], listing["developerName"])
+        self.assertEqual(portable["homepage"], listing["websiteURL"])
+        for field in ("logo", "composerIcon"):
+            path = listing[field]
+            self.assertTrue(path.startswith("./"))
+            icon = (root / path).resolve()
+            self.assertTrue(icon.is_relative_to(root))
+            svg = ET.fromstring(icon.read_text(encoding="utf-8"))
+            self.assertEqual("{http://www.w3.org/2000/svg}svg", svg.tag)
+            _, _, width, height = map(float, svg.attrib["viewBox"].split())
+            self.assertEqual(width, height)
+            self.assertGreaterEqual(width, 48)
+
+    def test_native_catalogs_share_a_release_with_compatible_manifests(self):
+        root = SCRIPT.parents[1]
+        codex_catalog = json.loads((root / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
+        native_catalog = json.loads((root / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
+        self.assertEqual("universal-qa-local", native_catalog["name"])
+        self.assertEqual("RavenGeeVee", native_catalog["owner"]["name"])
+        codex_entry = next(plugin for plugin in codex_catalog["plugins"] if plugin["name"] == "universal-qa-agent")
+        native_entry = next(plugin for plugin in native_catalog["plugins"] if plugin["name"] == "universal-qa-agent")
+        self.assertEqual("./plugins/universal-qa-agent", native_entry["source"])
+        release = root / native_entry["source"]
+        self.assertEqual((root / codex_entry["source"]["path"]).resolve(), release.resolve())
+        portable = json.loads((release / "plugin.json").read_text(encoding="utf-8"))
+        claude = json.loads((release / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        self.assertEqual(native_entry["name"], portable["name"])
+        for field in ("name", "version", "description"):
+            with self.subTest(field=field):
+                self.assertEqual(portable[field], claude[field])
+        for skill in agent_installer.SKILLS:
+            self.assertTrue((release / "skills" / skill / "SKILL.md").is_file())
+        self.assertFalse((release / ".claude-plugin/marketplace.json").exists())
+
     def test_marketplace_release_contains_current_public_resources(self):
         root = SCRIPT.parents[1]
         catalog = json.loads((root / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
         entry = next(plugin for plugin in catalog["plugins"] if plugin["name"] == "universal-qa-agent")
         self.assertEqual({"source": "local", "path": "./plugins/universal-qa-agent"}, entry["source"])
         release = root / entry["source"]["path"]
-        expected = {Path(name) for name in packager.PACKAGE_FILES}
+        expected = {Path(name): Path(name) for name in packager.PACKAGE_FILES}
+        expected.update({Path(target): Path(source) for source, target in packager.PACKAGE_FILE_MAPPINGS.items()})
         for name in packager.PACKAGE_DIRECTORIES:
             expected.update(
-                path.relative_to(root) for path in (root / name).rglob("*")
+                (path.relative_to(root), path.relative_to(root)) for path in (root / name).rglob("*")
                 if path.is_file() and "__pycache__" not in path.parts
                 and path.suffix != ".pyc" and path.name != ".DS_Store"
             )
         actual = {path.relative_to(release) for path in release.rglob("*") if path.is_file()}
-        self.assertEqual(expected, actual)
-        for relative in expected:
+        self.assertEqual(set(expected), actual)
+        for relative, source in expected.items():
             with self.subTest(resource=str(relative)):
-                self.assertEqual((root / relative).read_bytes(), (release / relative).read_bytes())
+                self.assertEqual((root / source).read_bytes(), (release / relative).read_bytes())
 
     def test_package_command_targets_the_versioned_plugin_directory(self):
         root = PACKAGE_SCRIPT.resolve().parents[1]
         destination = root / "plugins/universal-qa-agent"
         with mock.patch.object(packager, "package_plugin", return_value=destination) as package, contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(0, packager.main())
+            self.assertEqual(0, packager.main([]))
         package.assert_called_once_with(root, root / "plugins")
+
+    def test_archive_command_packages_then_archives_the_release(self):
+        root = PACKAGE_SCRIPT.resolve().parents[1]
+        destination = root / "plugins/universal-qa-agent"
+        archive_path = root / "dist/universal-qa-agent-0.1.5.zip"
+        with mock.patch.object(packager, "package_plugin", return_value=destination) as package, mock.patch.object(packager, "archive_plugin", return_value=archive_path) as archive, contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(0, packager.main(["--archive"]))
+        package.assert_called_once_with(root, root / "plugins")
+        archive.assert_called_once_with(destination, root / "dist")
 
     def test_distribution_includes_resources_and_excludes_private_data(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -521,9 +593,9 @@ class PluginPackageTests(unittest.TestCase):
                 "repo-profiles/PrivateProject/secret-draft.md",
                 "repo-profiles/PrivateProject/feedback/private-feedback.md",
                 "scripts/install_agent_skills.py",
+                ".claude-plugin/marketplace.json",
                 "skills/qa-onboard-repo/__pycache__/helper.pyc",
                 "skills/jira-test-generator/helper.pyc",
-                "README.md",
             )
             for filename in excluded:
                 path = source / filename
@@ -533,10 +605,74 @@ class PluginPackageTests(unittest.TestCase):
             destination = packager.package_plugin(source, root / "dist")
 
             self.assertEqual(root / "dist" / "universal-qa-agent", destination)
-            for filename in files:
-                self.assertEqual(filename, (destination / filename).read_text(encoding="utf-8"))
+            for filename, content in files.items():
+                target = packager.PACKAGE_FILE_MAPPINGS.get(filename, filename)
+                self.assertEqual(content, (destination / target).read_text(encoding="utf-8"))
             for filename in excluded:
                 self.assertFalse((destination / filename).exists())
+
+    def test_archive_contains_plugin_at_root_and_excludes_private_sources(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            source = root / "source"
+            self.create_source(source)
+            private = source / "repo-profiles/PrivateProject/feedback.md"
+            private.parent.mkdir(parents=True)
+            private.write_text("private feedback", encoding="utf-8")
+            package = packager.package_plugin(source, root / "plugins")
+
+            archive_path = packager.archive_plugin(package, root / "dist")
+
+            self.assertEqual(root / "dist/universal-qa-agent-0.1.5.zip", archive_path)
+            with zipfile.ZipFile(archive_path) as archive:
+                expected = {path.relative_to(package).as_posix() for path in package.rglob("*") if path.is_file()}
+                self.assertEqual(expected, set(archive.namelist()))
+                self.assertIn("plugin.json", archive.namelist())
+                self.assertIn(".claude-plugin/plugin.json", archive.namelist())
+                self.assertEqual(b"docs/plugin-readme.md", archive.read("README.md"))
+                self.assertNotIn("repo-profiles/PrivateProject/feedback.md", archive.namelist())
+
+    def test_archive_refuses_to_replace_an_existing_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self.create_source(root / "source")
+            package = packager.package_plugin(root / "source", root / "plugins")
+            output = root / "dist"
+            output.mkdir()
+            archive = output / "universal-qa-agent-0.1.5.zip"
+            archive.write_bytes(b"existing archive")
+
+            with self.assertRaises(FileExistsError):
+                packager.archive_plugin(package, output)
+
+            self.assertEqual(b"existing archive", archive.read_bytes())
+
+    def test_archive_rejects_symlinks_and_removes_partial_zip(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            self.create_source(root / "source")
+            package = packager.package_plugin(root / "source", root / "plugins")
+            private = root / "private.txt"
+            private.write_text("private data", encoding="utf-8")
+            (package / "private-link.txt").symlink_to(private)
+
+            with self.assertRaises(ValueError):
+                packager.archive_plugin(package, root / "dist")
+
+            self.assertFalse((root / "dist/universal-qa-agent-0.1.5.zip").exists())
+            self.assertEqual("private data", private.read_text(encoding="utf-8"))
+
+    def test_archive_rejects_unsafe_version_before_creating_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            package = root / "package"
+            package.mkdir()
+            for version in ("../other", "1.2.3/../../other", "1.2", ""):
+                with self.subTest(version=version):
+                    (package / "plugin.json").write_text(json.dumps({"version": version}), encoding="utf-8")
+                    with self.assertRaises(ValueError):
+                        packager.archive_plugin(package, root / "dist")
+                    self.assertFalse((root / "dist").exists())
 
     def test_distribution_refuses_to_replace_existing_destination(self):
         with tempfile.TemporaryDirectory() as temporary:

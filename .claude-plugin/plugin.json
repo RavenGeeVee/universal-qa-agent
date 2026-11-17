@@ -1,0 +1,13 @@
+{
+  "name": "universal-qa-agent",
+  "version": "0.1.5",
+  "description": "Learn automation repositories and turn Jira requirements into reviewable tests.",
+  "author": {
+    "name": "RavenGeeVee",
+    "url": "https://github.com/RavenGeeVee"
+  },
+  "homepage": "https://github.com/RavenGeeVee/universal-qa-agent",
+  "repository": "https://github.com/RavenGeeVee/universal-qa-agent",
+  "license": "MIT",
+  "keywords": ["qa", "testing", "jira", "test-automation"]
+}
