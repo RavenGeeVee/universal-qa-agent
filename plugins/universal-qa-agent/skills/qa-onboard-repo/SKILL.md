@@ -35,3 +35,7 @@ Before any build, test, lint, formatting, or verification command, state the exa
 ## Report
 
 Summarize the target path, profile path/status, detected stack, inspected patterns, evidence, gaps, and whether the target repository was changed. The target should remain unchanged during onboarding.
+
+## User feedback
+
+When the user provides feedback on this skill or requests an improvement draft, follow `<package-root>/skills/jira-test-generator/references/feedback.md` and use its feedback template. Keep repository findings local; shared issue/PR submissions and accepted knowledge changes require their own explicit approval. Do not automatically rewrite skills or publish discussions.

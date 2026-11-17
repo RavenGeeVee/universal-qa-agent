@@ -66,3 +66,7 @@ For each new pattern or restriction, check for duplicates and conflicts; classif
 ## Final report
 
 Report issue key and available sources, selected test-case template/format and its source, fallback or field-mapping gaps, requirement-to-test traceability, gap decisions, files changed, validation command/results, profile updates proposed or approved, and unresolved questions.
+
+## User feedback
+
+When the user provides feedback on this skill or requests an improvement draft, read `references/feedback.md` and use `assets/feedback-template.md`. Keep repository findings local; shared issue/PR submissions and accepted knowledge changes require their own explicit approval. Do not automatically rewrite skills or publish discussions.

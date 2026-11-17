@@ -200,6 +200,12 @@ An explicit `--profiles-dir` takes precedence over `UQA_PROFILES_DIR`. Without a
 
 Profiles are private local files ignored by Git; packaging includes only the empty template. Shared documentation and examples use generic placeholders; actual onboarded repository names, private paths, and identifying details belong in local profile files. Existing profiles are not moved automatically. Keep the source checkout or set an absolute profile-store override available to each agent process. For discovery details, remote selection, and helper commands, see [the setup guide](docs/local-development.md#shared-profiles-across-agents).
 
+## Feedback and shared improvements
+
+Tell the active agent what worked or what should change, and ask it to draft feedback. Both skills use the [feedback workflow](docs/feedback.md) and [reusable template](skills/jira-test-generator/assets/feedback-template.md) to separate repository-specific findings from potential shared improvements.
+
+Feedback stays local by default. You review any saved note or sanitized issue/PR before it is submitted. The repository provides a **Skill feedback** issue template; maintainers review accepted changes and release a new plugin version. Actual repository names, private paths, ticket details, and conversations are not collected or published automatically.
+
 ## Updates
 
 For the Codex GitHub marketplace:
@@ -237,6 +243,7 @@ The coding agent performs analysis, scenario design, and code editing; determini
 ## Further documentation
 
 - [Skill artifacts, document types, and storage locations](docs/artifacts.md)
+- [Feedback, review, and shared improvements](docs/feedback.md)
 - [Installation, Python environments, updates, and troubleshooting](docs/local-development.md)
 - [Repository onboarding](docs/repository-onboarding.md)
 - [Jira-to-automation workflow](docs/jira-automation.md)

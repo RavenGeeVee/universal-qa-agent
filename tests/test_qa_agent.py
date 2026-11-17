@@ -519,6 +519,7 @@ class PluginPackageTests(unittest.TestCase):
             files = self.create_source(source)
             excluded = (
                 "repo-profiles/PrivateProject/secret-draft.md",
+                "repo-profiles/PrivateProject/feedback/private-feedback.md",
                 "scripts/install_agent_skills.py",
                 "skills/qa-onboard-repo/__pycache__/helper.pyc",
                 "skills/jira-test-generator/helper.pyc",

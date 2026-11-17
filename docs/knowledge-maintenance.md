@@ -9,3 +9,5 @@ For each discovery, record the statement, classification (universal or repositor
 - Present updates as a diff or equivalent reviewable proposal. Do not persist accepted profile or shared-knowledge changes without explicit approval scoped to the named identity and knowledge files.
 - Validate the proposal with `qa_agent.py validate --schema knowledge-proposal.schema.json`; universal proposals need repository evidence from at least two distinct identity keys.
 - After approval, update the appropriate file and report the change. On conflict, keep the prior accepted rule and surface the conflict for resolution.
+
+User feedback first becomes a local draft using the [feedback workflow](feedback.md). A saved feedback note does not alter accepted knowledge or grant permission to share it. Route repository findings to local proposals and reusable findings to sanitized, explicitly submitted issues/PRs for maintainer review.
